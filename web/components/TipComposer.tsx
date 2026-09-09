@@ -69,7 +69,7 @@ export function TipComposer({
     setFormError(null);
     if (!requireEligibility()) return;
     if (!publicClient || !address) {
-      setFormError("Connect your wallet first.");
+      setFormError("Sign in first.");
       return;
     }
     const token = tokenBySymbol(symbol);
@@ -217,7 +217,7 @@ export function TipComposer({
           {formError && <div className="field-error" role="alert">{formError}</div>}
           {!isConnected ? (
             <div className="stack" style={{ ["--gap" as string]: "8px" }}>
-              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Connect a wallet to continue.</p>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>Sign in to continue.</p>
               <WalletButton />
             </div>
           ) : wrongNetwork ? (

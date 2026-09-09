@@ -62,8 +62,8 @@ export default function DashboardPage() {
             <div className="dashboard-identity">
               <span className="identity-avatar"><OwnPayIcon name="wallet" size={21} /></span>
               <span>
-                <strong>{address ? shortAddress(address) : "Wallet not connected"}</strong>
-                <small>{isConnected ? (wrongNetwork ? "Switch to Base" : "Connected on Base") : "Connect to see your grants"}</small>
+                <strong>{address ? shortAddress(address) : "Not signed in"}</strong>
+                <small>{isConnected ? (wrongNetwork ? "Switch to Base" : "Connected on Base") : "Sign in to see your grants"}</small>
               </span>
             </div>
           </div>
@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
           <section id="grants" className="dashboard-section" aria-labelledby="grants-title">
             <div className="section-heading"><div><p className="eyebrow">Onchain activity</p><h2 id="grants-title">Your grants</h2></div><span className="section-count">Live from Base</span></div>
-            <div className="empty-state"><span className="empty-state-icon"><OwnPayIcon name="spark" size={22} /></span><h3>{isConnected ? "No grants found yet." : "Connect to see your grants."}</h3><p>{isConnected ? "Send your first stock grant and start turning payments into ownership." : "Your dashboard never invents balances or activity. Connect a wallet to read the chain."}</p><Link href="/pay" className="btn btn-primary">Send stock <OwnPayIcon name="arrow" size={17} /></Link></div>
+            <div className="empty-state"><span className="empty-state-icon"><OwnPayIcon name="spark" size={22} /></span><h3>{isConnected ? "No grants found yet." : "Sign in to see your grants."}</h3><p>{isConnected ? "Send your first stock grant and start turning payments into ownership." : "Your dashboard never invents balances or activity. Sign in to read your onchain activity."}</p><Link href="/pay" className="btn btn-primary">Send stock <OwnPayIcon name="arrow" size={17} /></Link></div>
           </section>
 
           {isConnected && <OwnershipRulesPanel />}

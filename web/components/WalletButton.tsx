@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useDisconnect } from "wagmi";
 import { shortAddress } from "@/lib/recipient";
 import { PrivyLoginButton } from "@/components/PrivyLoginButton";
 
 export function WalletButton() {
   const { address, isConnected } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const [menu, setMenu] = useState(false);
+
+  // OwnPay uses Privy as the user-facing entry point. The legacy external
+  // connector menu remains available only as a silent fallback for local
+  // deployments that do not have a Privy app configured.
+  if (process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
+    return <PrivyLoginButton />;
+  }
 
   if (isConnected && address) {
     return (
@@ -35,55 +41,7 @@ export function WalletButton() {
     );
   }
 
-  // De-duplicate connectors by name (wagmi can list several injected variants).
-  const seen = new Set<string>();
-  const options = connectors.filter((c) => {
-    if (seen.has(c.name)) return false;
-    seen.add(c.name);
-    return true;
-  });
-
-  return (
-    <div style={{ position: "relative" }}>
-      {process.env.NEXT_PUBLIC_PRIVY_APP_ID && <PrivyLoginButton />}
-      <button
-        className="btn btn-primary"
-        style={compact}
-        onClick={() => setMenu((m) => !m)}
-        disabled={isPending}
-      >
-        {isPending ? "Connecting…" : "Connect wallet"}
-      </button>
-      {menu && (
-        <div className="panel" style={dropdown}>
-          <div className="stack" style={{ ["--gap" as string]: "8px" }}>
-            {options.map((c) => (
-              <button
-                key={c.uid}
-                className="btn btn-ghost btn-block"
-                onClick={() => {
-                  connect({ connector: c });
-                  setMenu(false);
-                }}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
 
 const compact: React.CSSProperties = { minHeight: 40, padding: "8px 14px", fontSize: 14 };
-
-const dropdown: React.CSSProperties = {
-  position: "absolute",
-  right: 0,
-  top: "calc(100% + 8px)",
-  width: 220,
-  padding: 10,
-  zIndex: 40,
-  boxShadow: "var(--shadow-raise)",
-};

@@ -45,7 +45,7 @@ export function UsdcPaymentComposer({
   async function prepare() {
     setError(null);
     if (!requireEligibility()) return;
-    if (!publicClient || !address) return setError("Connect your wallet first.");
+    if (!publicClient || !address) return setError("Sign in first.");
     try {
       const resolved = await resolveRecipient(publicClient, recipient);
       if (!resolved.ok) return setError(resolved.message);
@@ -130,7 +130,7 @@ export function UsdcPaymentComposer({
           <div className="field-hint">Canonical native USDC on Base.</div>
         </div>
         {error && <div className="field-error" role="alert">{error}</div>}
-        {!isConnected ? <div className="stack" style={{ ["--gap" as string]: "8px" }}><p className="muted" style={{ margin: 0, fontSize: 13 }}>Connect or sign in to continue.</p><WalletButton /></div> : wrongNetwork ? <button className="btn btn-primary btn-block" disabled>Switch to Base to continue</button> : <button className="btn btn-primary btn-block" onClick={prepare} disabled={!recipient || !amount}>Review USDC payment</button>}
+        {!isConnected ? <div className="stack" style={{ ["--gap" as string]: "8px" }}><p className="muted" style={{ margin: 0, fontSize: 13 }}>Sign in to continue.</p><WalletButton /></div> : wrongNetwork ? <button className="btn btn-primary btn-block" disabled>Switch to Base to continue</button> : <button className="btn btn-primary btn-block" onClick={prepare} disabled={!recipient || !amount}>Review USDC payment</button>}
       </>}
       {phase === "review" && review && <div className="panel stack" style={{ ["--gap" as string]: "14px" }}>
         <h2 style={{ fontSize: 18 }}>Confirm USDC payment</h2>
