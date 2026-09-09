@@ -80,6 +80,19 @@ Exercised every flow through the real UI against locally-deployed `StockVesting`
 To reproduce: `npx hardhat node`, then `npx hardhat run scripts/deploy-local.js
 --network localhost` (writes `web/.env.local`), then `npm --prefix web run dev`.
 
+## Hosting — VPS (Docker + Caddy)
+Deployment setup for a VPS: Next.js standalone in Docker behind Caddy (automatic
+HTTPS). Runbook: `docs/VPS.md`.
+
+| Item | State | Evidence |
+|---|---|---|
+| Next standalone output | ✅ | `web/next.config.ts` `output: "standalone"`; build emits `.next/standalone/server.js` |
+| Standalone server runs like the container | ✅ | ran `node server.js` locally — `/`, `/pay`, `/claim/0` all 200 |
+| Multi-stage Dockerfile | ✅ | `web/Dockerfile` (deps → build → minimal runner, non-root) |
+| Compose + Caddy auto-HTTPS | ✅ | `deploy/docker-compose.yml`, `deploy/Caddyfile` (domain via `OWNPAY_DOMAIN`) |
+| Public-only config (no secrets on box) | ✅ | `deploy/.env.example` — only `NEXT_PUBLIC_*` + hostname |
+| Docker image built on the VPS | ⛔ | Docker unavailable in this session; first `docker compose up --build` runs on the VPS |
+
 ## Owner-only actions (cannot be automated in this session)
 These involve real funds / real signatures and must be performed by the project
 owner with their own wallet. Turnkey runbook: `docs/DEPLOY.md`.

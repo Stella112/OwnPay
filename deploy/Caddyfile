@@ -1,0 +1,20 @@
+# OwnPay reverse proxy.
+#
+# OWNPAY_DOMAIN controls the site address:
+#   :80                    -> HTTP only, served on the VPS IP (domain-in-progress phase)
+#   ownpay.example.com     -> Caddy automatically obtains & renews a Let's Encrypt cert
+#
+# For automatic HTTPS to work: point the domain's A/AAAA record at this VPS and
+# keep ports 80 and 443 open (ACME uses them).
+
+{$OWNPAY_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+
+	header {
+		# Sensible security headers for a static-ish app.
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options SAMEORIGIN
+	}
+}

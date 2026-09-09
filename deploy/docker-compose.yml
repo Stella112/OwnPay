@@ -1,0 +1,43 @@
+# OwnPay VPS stack: Next.js app behind Caddy (automatic HTTPS).
+# Usage (from this directory):
+#   cp .env.example .env   # then edit .env
+#   docker compose up -d --build
+#
+# Compose reads ./.env automatically for the ${...} values below.
+
+services:
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* are inlined at BUILD time — passed as build args here.
+        NEXT_PUBLIC_STOCK_VESTING_ADDRESS: ${NEXT_PUBLIC_STOCK_VESTING_ADDRESS:-}
+        NEXT_PUBLIC_AAPLC_ADDRESS: ${NEXT_PUBLIC_AAPLC_ADDRESS:-}
+        NEXT_PUBLIC_NVDAC_ADDRESS: ${NEXT_PUBLIC_NVDAC_ADDRESS:-}
+        NEXT_PUBLIC_BASE_RPC_URL: ${NEXT_PUBLIC_BASE_RPC_URL:-}
+        NEXT_PUBLIC_BASENAME_UNIVERSAL_RESOLVER: ${NEXT_PUBLIC_BASENAME_UNIVERSAL_RESOLVER:-}
+    restart: unless-stopped
+    expose:
+      - "3000" # internal only; Caddy fronts it
+    # No host port is published — nothing bypasses the proxy.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # ":80" = HTTP only (before DNS is pointed). A hostname = automatic HTTPS.
+      OWNPAY_DOMAIN: ${OWNPAY_DOMAIN:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
