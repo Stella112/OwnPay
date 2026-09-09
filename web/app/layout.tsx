@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
+import "./portfolio.css";
 import { Providers } from "@/components/Providers";
 
 const instrument = Instrument_Sans({

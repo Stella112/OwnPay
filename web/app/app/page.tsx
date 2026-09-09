@@ -11,6 +11,7 @@ import { shortAddress } from "@/lib/recipient";
 import { lookupName } from "@/lib/recipient";
 import { UsdcBalance } from "@/components/UsdcBalance";
 import { OwnershipRulesPanel } from "@/components/OwnershipRulesPanel";
+import { PortfolioSession } from "@/components/PortfolioSession";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
 import { useEffect, useState } from "react";
 
@@ -83,6 +84,8 @@ export default function DashboardPage() {
           </section>
 
           {isConnected && address && <OwnPayLinkCard recipient={basename ?? address} displayName={basename ?? shortAddress(address)} />}
+
+          <PortfolioSession />
 
           <section className="dashboard-section" aria-labelledby="quick-actions-title">
             <div className="section-heading"><div><p className="eyebrow">Move ownership</p><h2 id="quick-actions-title">Quick actions</h2></div><Link href="/" className="text-link">How OwnPay works <OwnPayIcon name="arrow" size={16} /></Link></div>
