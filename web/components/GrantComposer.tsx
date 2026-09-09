@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { decodeEventLog, type Address, type Hex } from "viem";
-import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, useChainId, usePublicClient } from "wagmi";
 import Link from "next/link";
 import { SUPPORTED_TOKENS, tokenBySymbol, hasConfiguredTokens } from "@/lib/tokens";
 import { STOCK_VESTING_ADDRESS, stockVestingAbi, erc20Abi, isVestingConfigured } from "@/lib/contracts";
@@ -15,6 +15,7 @@ import { useEligibility } from "@/components/Eligibility";
 import { WalletButton } from "@/components/WalletButton";
 import { TxSteps, type TxStep } from "@/components/TxSteps";
 import { BASESCAN_TX } from "@/lib/explorer";
+import { useOwnPayTransaction } from "@/components/OwnPayTransactionProvider";
 
 type Mode = "pay" | "gift";
 
@@ -60,7 +61,7 @@ export function GrantComposer({
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
-  const { writeContractAsync } = useWriteContract();
+  const { writeContractAsync } = useOwnPayTransaction();
   const { requireEligibility } = useEligibility();
 
   const [symbol, setSymbol] = useState(SUPPORTED_TOKENS[0]?.symbol ?? "");
