@@ -42,17 +42,21 @@ function ClaimView({ id }: { id: bigint }) {
   const { address } = useAccount();
 
   if (g.isLoading) return <Empty title="Loading grant…" body="Reading from Base." />;
+  if (g.error) return <Empty title="Couldn’t load grant" body="Try again in a moment. The claim page only uses values read from Base." />;
   if (g.notFound || !g.grant) return <Empty title="Grant not found" body={`No grant #${id.toString()} exists on this contract.`} />;
+  if (g.decimals === undefined || g.totalUi === undefined || g.releasedUi === undefined) {
+    return <Empty title="Reading grant details…" body="Loading the token precision and B20 share conversion from Base." />;
+  }
 
   const grant = g.grant;
-  const decimals = g.decimals ?? 18;
+  const decimals = g.decimals;
   const name = tokenByAddress(grant.token)?.name;
   const symbol = g.symbol ?? "shares";
 
-  const totalUi = g.totalUi ?? 0n;
-  const releasedUi = g.releasedUi ?? 0n;
-  const vestedUi = g.vestedUiAt(now);
-  const claimableUi = vestedUi > releasedUi ? vestedUi - releasedUi : 0n;
+  const totalUi = g.totalUi;
+  const releasedUi = g.releasedUi;
+  const vestedUi = g.vestedUi ?? g.vestedUiAt(now);
+  const claimableUi = g.releasableUi ?? (vestedUi > releasedUi ? vestedUi - releasedUi : 0n);
   const remainingUi = totalUi > releasedUi ? totalUi - releasedUi : 0n;
   const pct = totalUi > 0n ? Number((vestedUi * 10000n) / totalUi) / 100 : 0;
 

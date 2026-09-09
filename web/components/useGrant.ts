@@ -47,8 +47,12 @@ export type GrantView = {
   symbol?: string;
   totalUi?: bigint;
   releasedUi?: bigint;
+  /** Authoritative vested RAW converted through the B20 helper. */
+  vestedUi?: bigint;
   /** Authoritative claimable RAW from chain (gates the claim button). */
   releasableRaw?: bigint;
+  /** Authoritative claimable RAW converted through the B20 helper. */
+  releasableUi?: bigint;
   refetch: () => void;
   /** Local prediction of vested UI base-units at time `nowSec` (linear vesting, spec A8). */
   vestedUiAt: (nowSec: number) => bigint;
@@ -75,6 +79,14 @@ export function useGrant(id: bigint | undefined): GrantView {
     query: { enabled, refetchInterval: 8000 },
   });
 
+  const vestedRead = useReadContract({
+    address: STOCK_VESTING_ADDRESS,
+    abi: stockVestingAbi,
+    functionName: "vestedRaw",
+    args: id !== undefined ? [id] : undefined,
+    query: { enabled, refetchInterval: 2000 },
+  });
+
   const grant = grantRead.data ? parseGrant(grantRead.data as readonly unknown[]) : undefined;
   const notFound =
     grant !== undefined && grant.to === "0x0000000000000000000000000000000000000000";
@@ -96,6 +108,8 @@ export function useGrant(id: bigint | undefined): GrantView {
       token,
       grant?.total?.toString(),
       grant?.released?.toString(),
+      vestedRead.data?.toString(),
+      releasableRead.data?.toString(),
     ],
     enabled: !!client && !!token && !!grant && !notFound,
     queryFn: async () => {
@@ -103,7 +117,11 @@ export function useGrant(id: bigint | undefined): GrantView {
       const decimals = await getDecimals(client, token);
       const totalUi = await rawToUi(client, token, grant.total);
       const releasedUi = await rawToUi(client, token, grant.released);
-      return { decimals, totalUi, releasedUi };
+      const vestedRaw = vestedRead.data as bigint | undefined;
+      const releasableRaw = releasableRead.data as bigint | undefined;
+      const vestedUi = vestedRaw === undefined ? undefined : await rawToUi(client, token, vestedRaw);
+      const releasableUi = releasableRaw === undefined ? undefined : await rawToUi(client, token, releasableRaw);
+      return { decimals, totalUi, releasedUi, vestedUi, releasableUi };
     },
   });
 
@@ -115,7 +133,8 @@ export function useGrant(id: bigint | undefined): GrantView {
   const vestedUiAt = useMemo(() => {
     return (nowSec: number): bigint => {
       if (!grant || conv.data === undefined) return 0n;
-      const { totalUi } = conv.data;
+      const { totalUi, vestedUi } = conv.data;
+      if (vestedUi !== undefined) return vestedUi;
       if (grant.revoked) return totalUi; // capped total after revoke
       const t = Math.floor(nowSec); // tick is fractional seconds; BigInt needs an integer
       if (t < grant.cliff) return 0n;
@@ -128,7 +147,7 @@ export function useGrant(id: bigint | undefined): GrantView {
   }, [grant, conv.data, end]);
 
   return {
-    isLoading: grantRead.isLoading || (enabled && !grant),
+    isLoading: grantRead.isLoading || (enabled && !grant && !grantRead.error),
     notFound: !!notFound,
     error: grantRead.error?.message,
     grant,
@@ -136,10 +155,13 @@ export function useGrant(id: bigint | undefined): GrantView {
     symbol,
     totalUi: conv.data?.totalUi,
     releasedUi: conv.data?.releasedUi,
+    vestedUi: conv.data?.vestedUi,
     releasableRaw: releasableRead.data as bigint | undefined,
+    releasableUi: conv.data?.releasableUi,
     refetch: () => {
       grantRead.refetch();
       releasableRead.refetch();
+      vestedRead.refetch();
     },
     vestedUiAt,
     end,

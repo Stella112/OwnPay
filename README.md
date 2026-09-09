@@ -41,4 +41,4 @@ npm test        # runs the StockVesting test suite against a local chain
 ```
 
 Deployment to Base mainnet requires a funded deployer key; see
-[`contracts/.env.example`](contracts/.env.example) and `scripts/deploy.ts`.
+[`contracts/.env.example`](contracts/.env.example), [`docs/DEPLOY.md`](docs/DEPLOY.md), and `contracts/scripts/deploy.js`.

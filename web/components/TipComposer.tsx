@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { Address } from "viem";
 import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
 import { SUPPORTED_TOKENS, tokenBySymbol, hasConfiguredTokens } from "@/lib/tokens";
-import { STOCK_VESTING_ADDRESS, stockVestingAbi, erc20Abi, isVestingConfigured } from "@/lib/contracts";
+import { erc20Abi } from "@/lib/contracts";
 import { getDecimals, rawToUi, uiToRaw } from "@/lib/b20";
 import { parseUiAmount, formatUiAmount } from "@/lib/format";
 import { encodeMemo, isMemoValid, memoByteLength, MEMO_MAX_BYTES } from "@/lib/memo";
@@ -25,7 +25,6 @@ type Review = {
   effectiveUi: bigint;
   rounded: boolean;
   memo: string;
-  native: boolean; // token supports transferWithMemo
 };
 
 export function TipComposer() {
@@ -47,7 +46,8 @@ export function TipComposer() {
 
   const memoBytes = memoByteLength(memo);
   const memoOk = isMemoValid(memo);
-  const configured = isVestingConfigured() && hasConfiguredTokens();
+  // Tip is a direct B20 transfer and does not depend on the vesting escrow.
+  const configured = hasConfiguredTokens();
   const wrongNetwork = isConnected && chainId !== EXPECTED_CHAIN_ID;
 
   const doneHash = useMemo(() => steps.find((s) => s.key === "tip")?.hash, [steps]);
@@ -95,8 +95,10 @@ export function TipComposer() {
         return setFormError(`Not enough ${token.symbol}.`);
       }
 
-      // Prefer the token's native transferWithMemo (no approval, no escrow).
+      // Official Coinbase B20 stocks expose this native function. Tip must never
+      // route through the vesting escrow or require an approval.
       const native = await supportsNativeMemo(publicClient, token.address, address, res.value.address, rawAmount);
+      if (!native) return setFormError(`${token.symbol} does not expose the required transferWithMemo function.`);
 
       setReview({
         token: token.address,
@@ -107,7 +109,6 @@ export function TipComposer() {
         effectiveUi,
         rounded: effectiveUi !== uiAmount,
         memo,
-        native,
       });
       setPhase("review");
     } catch (e) {
@@ -121,40 +122,19 @@ export function TipComposer() {
 
     const memoHex = encodeMemo(review.memo);
     const list: TxStep[] = [];
-    if (!review.native) list.push({ key: "approve", label: `Approve ${review.symbol}`, status: "pending" });
     list.push({ key: "tip", label: `Send ${review.symbol} tip`, status: "pending" });
     setSteps(list);
     const update = (key: string, patch: Partial<TxStep>) =>
       setSteps((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
 
     try {
-      if (!review.native) {
-        update("approve", { status: "active", detail: "Waiting for wallet…" });
-        const approveHash = await writeContractAsync({
-          address: review.token,
-          abi: erc20Abi,
-          functionName: "approve",
-          args: [STOCK_VESTING_ADDRESS as Address, review.rawAmount],
-        });
-        update("approve", { detail: "Confirming on Base…", hash: approveHash });
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
-        update("approve", { status: "done", detail: "Approved" });
-      }
-
       update("tip", { status: "active", detail: "Waiting for wallet…" });
-      const hash = review.native
-        ? await writeContractAsync({
-            address: review.token,
-            abi: erc20Abi,
-            functionName: "transferWithMemo",
-            args: [review.recipient.address, review.rawAmount, memoHex],
-          })
-        : await writeContractAsync({
-            address: STOCK_VESTING_ADDRESS as Address,
-            abi: stockVestingAbi,
-            functionName: "tipWithMemo",
-            args: [review.token, review.recipient.address, review.rawAmount, memoHex],
-          });
+      const hash = await writeContractAsync({
+        address: review.token,
+        abi: erc20Abi,
+        functionName: "transferWithMemo",
+        args: [review.recipient.address, review.rawAmount, memoHex],
+      });
       update("tip", { detail: "Confirming on Base…", hash });
       await publicClient.waitForTransactionReceipt({ hash });
       update("tip", { status: "done", detail: "Sent" });
@@ -173,7 +153,7 @@ export function TipComposer() {
       <div className="panel">
         <h2 style={{ fontSize: 18, marginBottom: 8 }}>Not configured yet</h2>
         <p className="soft" style={{ margin: 0, fontSize: 14 }}>
-          Set the StockVesting address and at least one verified token address to enable tips.
+          No verified token addresses are configured yet.
         </p>
       </div>
     );
@@ -249,7 +229,7 @@ export function TipComposer() {
             <dt>To</dt><dd className="tnum">{review.recipient.name ?? shortAddress(review.recipient.address)}</dd>
             <dt>Amount</dt><dd className="tnum">{formatUiAmount(review.effectiveUi, review.decimals)} {review.symbol}</dd>
             {review.memo && (<><dt>Memo</dt><dd>{review.memo}</dd></>)}
-            <dt>Method</dt><dd>{review.native ? "Direct transfer" : "Escrow relay"}</dd>
+            <dt>Method</dt><dd>Direct B20 transfer with memo</dd>
           </dl>
           <div className="row">
             <button className="btn btn-ghost" onClick={() => setPhase("form")}>Back</button>

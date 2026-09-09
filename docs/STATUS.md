@@ -29,14 +29,14 @@ Next.js 16.3.4 (Turbopack) · React 19 · wagmi 3.7 · viem 2.56 · @tanstack/re
 | Item | State | Evidence |
 |---|---|---|
 | App scaffold (Next.js + wagmi/viem) | ✅ | `web/` builds; wagmi config Base-only (`web/lib/wagmi.ts`) |
-| Centralized B20 conversion helper (`rawToUi`/`uiToRaw`) | ✅ | `web/lib/b20.ts` — prefers `toUIAmount`/`fromUIAmount`, falls back to `toScaledBalance`/`toRawBalance`, never `raw=ui` |
+| Centralized B20 conversion helper (`rawToUi`/`uiToRaw`) | ✅ | `web/lib/b20.ts` — uses the live token surface `toScaledBalance`/`toRawBalance` first, with forward-compatible UI-name fallback; never `raw=ui` |
 | Shared memo encoder/decoder (bytes32, UTF-8 validated) | ✅ | `web/lib/memo.ts` + **6 unit tests pass** (`node --test lib/memo.test.ts`) |
 | Amount parse/format (tabular, small-fraction precision) | ✅ | `web/lib/format.ts` + **6 unit tests pass** |
 | Recipient resolution (Basename + EVM address) | ✅ | `web/lib/recipient.ts` — unresolved names blocked; resolver env-gated (not guessed) |
 | Eligibility gate (non-US, not KYC, re-openable) | ✅ | `web/components/Eligibility.tsx` |
 | Pay flow (approve→createGrant, event-sourced id) | ✅ | `web/components/GrantComposer.tsx` (mode="pay") |
 | Gift flow (revocable=false, all-or-nothing) | ✅ | `web/components/GrantComposer.tsx` (mode="gift") |
-| Tip flow (native `transferWithMemo`, escrow fallback) | ✅ | `web/components/TipComposer.tsx` |
+| Tip flow (native `transferWithMemo`, no escrow approval) | ✅ | `web/components/TipComposer.tsx` |
 | Mobile claim page `/claim/[id]` (hero ticks off vesting curve) | ✅ | `web/app/claim/[id]/page.tsx` + `web/components/useGrant.ts` |
 | Wrong-network protection (Switch to Base) | ✅ | `web/components/AppShell.tsx` NetworkNotice |
 | Honest unconfigured state (no fake data before deploy) | ✅ | verified in-browser: `/pay` shows "Not configured yet" |

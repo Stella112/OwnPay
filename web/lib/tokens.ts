@@ -10,13 +10,15 @@ import { isAddress } from "viem";
  * surface (toScaledBalance/toRawBalance/multiplier). Source of truth:
  * https://www.base.org/stocks (cross-checked by on-chain reads, not just the page).
  *
- * An environment variable overrides the default per token — used to point the app
- * at a locally-deployed MockB20 during the dev/local end-to-end pass:
+ * In dev-only local mode, an environment variable overrides the default per token
+ * — used to point the app at a locally-deployed MockB20 during the local
+ * end-to-end pass:
  *   web/.env.local
  *     NEXT_PUBLIC_AAPLC_ADDRESS=0x...   NEXT_PUBLIC_NVDAC_ADDRESS=0x...
  *
- * Any token whose (overridden) address is invalid is omitted, so the app never
- * transacts against an unverified address.
+ * Production ignores these overrides and always uses the verified addresses.
+ * Any selected address that is invalid is omitted, so the app never transacts
+ * against malformed configuration.
  */
 export type SupportedToken = {
   symbol: string;
@@ -41,8 +43,10 @@ const SEEDS: TokenSeed[] = [
   },
 ];
 
+const LOCAL = process.env.NEXT_PUBLIC_ENABLE_LOCAL === "true";
+
 export const SUPPORTED_TOKENS: SupportedToken[] = SEEDS.flatMap((s) => {
-  const chosen = s.env && s.env.length > 0 ? s.env : s.verified;
+  const chosen = LOCAL && s.env && s.env.length > 0 ? s.env : s.verified;
   return isAddress(chosen) ? [{ symbol: s.symbol, name: s.name, address: chosen as Address }] : [];
 });
 
