@@ -1,0 +1,3 @@
+# Keep scripts executable by shells on Linux after Windows checkouts/transfers.
+*.sh text eol=lf
+*.cjs text eol=lf
