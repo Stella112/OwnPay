@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useChainId, usePublicClient } from "wagmi";
 import { AppShell } from "@/components/AppShell";
 import { CharacterVisual } from "@/components/CharacterVisual";
 import { OwnPayIcon } from "@/components/OwnPayIcon";
 import { WalletButton } from "@/components/WalletButton";
+import { OwnPayLinkCard } from "@/components/OwnPayLinkTools";
 import { shortAddress } from "@/lib/recipient";
+import { lookupName } from "@/lib/recipient";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
+import { useEffect, useState } from "react";
 
 const actions = [
   { href: "/pay", label: "Pay", detail: "Vesting grant", icon: "send" as const },
@@ -19,7 +22,16 @@ const actions = [
 export default function DashboardPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const publicClient = usePublicClient();
+  const [basename, setBasename] = useState<string>();
   const wrongNetwork = isConnected && chainId !== EXPECTED_CHAIN_ID;
+
+  useEffect(() => {
+    let active = true;
+    if (!publicClient || !address) { setBasename(undefined); return () => { active = false; }; }
+    lookupName(publicClient, address).then((name) => { if (active) setBasename(name); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [publicClient, address]);
 
   return (
     <AppShell>
@@ -67,6 +79,8 @@ export default function DashboardPage() {
               <CharacterVisual compact />
             </div>
           </section>
+
+          {isConnected && address && <OwnPayLinkCard recipient={basename ?? address} displayName={basename ?? shortAddress(address)} />}
 
           <section className="dashboard-section" aria-labelledby="quick-actions-title">
             <div className="section-heading"><div><p className="eyebrow">Move ownership</p><h2 id="quick-actions-title">Quick actions</h2></div><Link href="/" className="text-link">How OwnPay works <OwnPayIcon name="arrow" size={16} /></Link></div>

@@ -27,7 +27,13 @@ type Review = {
   memo: string;
 };
 
-export function TipComposer() {
+export function TipComposer({
+  initialRecipient = "",
+  lockedRecipient = false,
+}: {
+  initialRecipient?: string;
+  lockedRecipient?: boolean;
+}) {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
@@ -35,7 +41,7 @@ export function TipComposer() {
   const { requireEligibility } = useEligibility();
 
   const [symbol, setSymbol] = useState(SUPPORTED_TOKENS[0]?.symbol ?? "");
-  const [recipient, setRecipient] = useState("");
+  const [recipient, setRecipient] = useState(initialRecipient);
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
 
@@ -196,7 +202,8 @@ export function TipComposer() {
           <div>
             <label htmlFor="t-recipient">Recipient</label>
             <input id="t-recipient" className="input" placeholder="0x… or name.base.eth" value={recipient}
-              onChange={(e) => setRecipient(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+              onChange={(e) => setRecipient(e.target.value)} readOnly={lockedRecipient} aria-readonly={lockedRecipient} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            {lockedRecipient && <div className="field-hint">Recipient fixed by this OwnPay Link.</div>}
           </div>
           <div>
             <label htmlFor="t-amount">Amount ({symbol})</label>

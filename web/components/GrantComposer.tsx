@@ -45,7 +45,15 @@ type Review = {
   memo: string;
 };
 
-export function GrantComposer({ mode }: { mode: Mode }) {
+export function GrantComposer({
+  mode,
+  initialRecipient = "",
+  lockedRecipient = false,
+}: {
+  mode: Mode;
+  initialRecipient?: string;
+  lockedRecipient?: boolean;
+}) {
   const isPay = mode === "pay";
   const presets = isPay ? PAY_PRESETS : GIFT_PRESETS;
 
@@ -56,7 +64,7 @@ export function GrantComposer({ mode }: { mode: Mode }) {
   const { requireEligibility } = useEligibility();
 
   const [symbol, setSymbol] = useState(SUPPORTED_TOKENS[0]?.symbol ?? "");
-  const [recipient, setRecipient] = useState("");
+  const [recipient, setRecipient] = useState(initialRecipient);
   const [amount, setAmount] = useState("");
   const [memo, setMemo] = useState("");
   const [presetKey, setPresetKey] = useState(presets[0].key);
@@ -289,10 +297,13 @@ export function GrantComposer({ mode }: { mode: Mode }) {
               placeholder="0x… or name.base.eth"
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
+              readOnly={lockedRecipient}
+              aria-readonly={lockedRecipient}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
             />
+            {lockedRecipient && <div className="field-hint">Recipient fixed by this OwnPay Link.</div>}
           </div>
 
           <div>
