@@ -1,0 +1,24 @@
+# OwnPay shared-VPS stack.
+#
+# This file intentionally runs only the web container. It does not bind ports
+# 80/443 and does not start a second Caddy, so it can coexist with Apex or any
+# other service already using the VPS entrypoint.
+#
+# Usage:
+#   docker compose -p ownpay -f docker-compose.shared.yml up -d --build
+
+services:
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_STOCK_VESTING_ADDRESS: ${NEXT_PUBLIC_STOCK_VESTING_ADDRESS:-}
+        NEXT_PUBLIC_AAPLC_ADDRESS: ${NEXT_PUBLIC_AAPLC_ADDRESS:-}
+        NEXT_PUBLIC_NVDAC_ADDRESS: ${NEXT_PUBLIC_NVDAC_ADDRESS:-}
+        NEXT_PUBLIC_BASE_RPC_URL: ${NEXT_PUBLIC_BASE_RPC_URL:-}
+        NEXT_PUBLIC_BASENAME_UNIVERSAL_RESOLVER: ${NEXT_PUBLIC_BASENAME_UNIVERSAL_RESOLVER:-}
+    restart: unless-stopped
+    ports:
+      # Loopback only: the existing VPS reverse proxy fronts this port.
+      - "127.0.0.1:${OWNPAY_PORT:-3102}:3000"

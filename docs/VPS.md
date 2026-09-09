@@ -10,6 +10,39 @@ Files:
 - `deploy/Caddyfile` — reverse proxy + auto-HTTPS
 - `deploy/.env.example` — public config template
 
+## Shared VPS mode (recommended beside Apex)
+
+The default `docker-compose.yml` below is for a fresh VPS: its Caddy service
+binds ports 80 and 443. **Do not use that file on a VPS where Apex already owns
+the reverse proxy.**
+
+For the shared server, use the isolated web-only stack instead:
+
+```bash
+cd /opt/ownpay/deploy
+cp .env.example .env
+# Set NEXT_PUBLIC_STOCK_VESTING_ADDRESS after the contract is deployed.
+# Keep OWNPAY_PORT=3102 unless a read-only port check shows it is occupied.
+bash ./deploy-shared.sh
+```
+
+This uses a separate Compose project (`ownpay`), starts only OwnPay's web
+container, and binds it to `127.0.0.1:3102` by default. It does not stop, restart,
+or reconfigure Apex. The existing VPS reverse proxy must route the OwnPay
+hostname to that loopback port. For a host-installed Caddy, the route is:
+
+```caddy
+ownpay.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:3102
+}
+```
+
+Validate the proxy configuration using its existing service's normal test/reload
+procedure before reloading it. If Apex's proxy runs inside Docker, use the
+existing proxy network or its host-gateway mechanism instead of assuming that
+`127.0.0.1` inside the proxy container reaches the host.
+
 ---
 
 ## 0. Prerequisites (on the VPS)
