@@ -43,6 +43,40 @@ procedure before reloading it. If Apex's proxy runs inside Docker, use the
 existing proxy network or its host-gateway mechanism instead of assuming that
 `127.0.0.1` inside the proxy container reaches the host.
 
+### Qevor VPS mode (the current Apex host)
+
+The Qevor VPS currently runs Node/PM2 directly and does not have Docker. Use the
+PM2 deployment on that host; do not install Docker just for OwnPay:
+
+```bash
+cd /opt/ownpay
+cp deploy/.env.example deploy/.env
+# Set NEXT_PUBLIC_STOCK_VESTING_ADDRESS when the contract is deployed.
+bash deploy/deploy-pm2.sh
+```
+
+This starts only the `ownpay-web` PM2 process on `127.0.0.1:3102`. It does not
+restart Apex, Qevie, PrismPulse, or any other PM2 process. Once the OwnPay DNS
+name is chosen, add an additive site block to `/etc/caddy/Caddyfile`:
+
+```caddy
+ownpay.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:3102
+}
+```
+
+Validate before reloading the existing Caddy service:
+
+```bash
+caddy validate --config /etc/caddy/Caddyfile
+systemctl reload caddy
+```
+
+Reload is intentionally used instead of restarting Caddy. Keep the Apex block
+unchanged and confirm the OwnPay hostname resolves to the VPS before enabling
+HTTPS.
+
 ---
 
 ## 0. Prerequisites (on the VPS)
