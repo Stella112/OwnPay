@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { CharacterVisual } from "@/components/CharacterVisual";
 import { OwnPayIcon } from "@/components/OwnPayIcon";
+import { LandingPrimaryCta } from "@/components/LandingPrimaryCta";
 
 const actions = [
   { href: "/pay", label: "Pay", title: "Create a vesting grant.", copy: "Compensation with a longer view.", icon: "send" as const },
@@ -19,7 +20,7 @@ export default function Home() {
             <span className="hero-kicker"><span className="kicker-icon"><OwnPayIcon name="spark" size={15} /></span> Pay. Gift. Tip. Own.</span>
             <h1 id="hero-title">Turn every payment<br /><span>into ownership.</span></h1>
             <p>Get paid in USDC or real Coinbase Tokenized Stocks on Base, share one OwnPay Link, and choose how much of your income becomes ownership.</p>
-            <div className="hero-actions"><Link href="/app" className="btn btn-primary btn-large">Get started <OwnPayIcon name="arrow" size={18} /></Link><a href="#how-it-works" className="btn btn-butter btn-large"><OwnPayIcon name="spark" size={17} /> How it works</a></div>
+            <div className="hero-actions"><LandingPrimaryCta /><a href="#how-it-works" className="btn btn-butter btn-large"><OwnPayIcon name="spark" size={17} /> How it works</a></div>
             <div className="hero-proof"><span className="proof-mark"><OwnPayIcon name="shield" size={15} /></span><span>Self-custodied on Base</span><span className="proof-divider" /><span>Official B20 assets</span></div>
           </div>
           <div className="hero-visual"><CharacterVisual /><div className="hero-stamp">More<br />people<br /><em>own.</em></div></div>
