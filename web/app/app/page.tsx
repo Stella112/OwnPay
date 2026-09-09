@@ -99,7 +99,7 @@ export default function DashboardPage() {
             <div className="empty-state"><span className="empty-state-icon"><OwnPayIcon name="spark" size={22} /></span><h3>{isConnected ? "No grants found yet." : "Sign in to see your grants."}</h3><p>{isConnected ? "Send your first stock grant and start turning payments into ownership." : "Your dashboard never invents balances or activity. Sign in to read your onchain activity."}</p><Link href="/pay" className="btn btn-primary">Send stock <OwnPayIcon name="arrow" size={17} /></Link></div>
           </section>
 
-          {isConnected && <OwnershipRulesPanel />}
+          {process.env.NEXT_PUBLIC_PRIVY_APP_ID && isConnected && <OwnershipRulesPanel />}
 
           <section id="activity" className="ownership-note">
             <div><span className="eyebrow">The OwnPay promise</span><h2>Ownership should move as easily as money.</h2><p>Stablecoins made global payments easier. OwnPay makes ownership programmable — with real Coinbase Tokenized Stocks, self-custodied on Base.</p></div>

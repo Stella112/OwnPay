@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { OWNERSHIP_RULE_JSON_SCHEMA, validateOwnershipRuleCandidate } from "@/lib/ownership-rules";
+import { authenticatePrivyRequest, authErrorResponse } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
 const MAX_INPUT = 1_000;
 
 export async function POST(request: Request) {
+  try { await authenticatePrivyRequest(request); } catch (error) { const response = authErrorResponse(error); return NextResponse.json(response.body, { status: response.status }); }
   const baseUrl = process.env.OLLAMA_BASE_URL?.replace(/\/$/, "");
   const model = process.env.OLLAMA_MODEL;
   if (!baseUrl || !model) return NextResponse.json({ error: "Rule parsing is not enabled on this deployment yet." }, { status: 503 });

@@ -40,6 +40,8 @@ Next.js 16.3.4 (Turbopack) · React 19 · wagmi 3.7 · viem 2.56 · @tanstack/re
 | Mobile claim page `/claim/[id]` (hero ticks off vesting curve) | ✅ | `web/app/claim/[id]/page.tsx` + `web/components/useGrant.ts` |
 | Wrong-network protection (Switch to Base) | ✅ | `web/components/AppShell.tsx` NetworkNotice |
 | Privy sponsored transaction rail (Base mainnet) | ▫️ | Deferred; current production path uses normal wallet gas |
+| Authenticated Privy identity binding for Ownership Rules | ✅ | `web/lib/server-auth.ts` verifies Privy identity tokens and checks the requested wallet is linked |
+| Durable Ownership Rules PostgreSQL adapter | 🚧 | `web/lib/db.ts` + `/api/ownership-rules`; production activation is blocked until `DATABASE_URL` and `PRIVY_VERIFICATION_KEY` are provisioned |
 | Honest unconfigured state (no fake data before deploy) | ✅ | verified in-browser: `/pay` shows "Not configured yet" |
 | typecheck / lint / build green | ✅ | `tsc --noEmit` exit 0 · `eslint` exit 0 · `next build` ✓ 5 routes |
 | Visual check (mobile) | ✅ | home + pay + review + claim screenshotted at 375px; teal/serif design renders |
