@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Address } from "viem";
-import { useAccount, useChainId, usePublicClient } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
 import { erc20Abi } from "@/lib/contracts";
 import { getDecimals } from "@/lib/b20";
 import { formatUiAmount, parseUiAmount } from "@/lib/format";
@@ -13,7 +13,6 @@ import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
 import { useEligibility } from "@/components/Eligibility";
 import { WalletButton } from "@/components/WalletButton";
 import { TxSteps, type TxStep } from "@/components/TxSteps";
-import { useOwnPayTransaction } from "@/components/OwnPayTransactionProvider";
 
 type PaymentReview = {
   recipient: ResolvedRecipient;
@@ -32,7 +31,7 @@ export function UsdcPaymentComposer({
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
-  const { writeContractAsync } = useOwnPayTransaction();
+  const { writeContractAsync } = useWriteContract();
   const { requireEligibility } = useEligibility();
   const [recipient, setRecipient] = useState(initialRecipient);
   const [amount, setAmount] = useState("");

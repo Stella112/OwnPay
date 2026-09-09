@@ -4,7 +4,7 @@ This file tracks the **real** state of the build. Rows are only marked done when
 there is verifiable evidence (passing tests, a compile, a real tx hash). "Should
 work" is not evidence.
 
-Last updated by the build session on 2026-09-09 (Base mainnet sponsorship rail built; dashboard policy still required).
+Last updated by the build session on 2026-09-09 (gas sponsorship deferred; normal Base mainnet wallet gas is active).
 
 ## Legend
 - ✅ done + evidence
@@ -39,7 +39,7 @@ Next.js 16.3.4 (Turbopack) · React 19 · wagmi 3.7 · viem 2.56 · @tanstack/re
 | Tip flow (native `transferWithMemo`, no escrow approval) | ✅ | `web/components/TipComposer.tsx` |
 | Mobile claim page `/claim/[id]` (hero ticks off vesting curve) | ✅ | `web/app/claim/[id]/page.tsx` + `web/components/useGrant.ts` |
 | Wrong-network protection (Switch to Base) | ✅ | `web/components/AppShell.tsx` NetworkNotice |
-| Privy sponsored transaction rail (Base mainnet) | ✅ | `web/components/OwnPayTransactionProvider.tsx` requests `sponsor: true` for embedded-wallet writes; Privy policy/funding still required |
+| Privy sponsored transaction rail (Base mainnet) | ▫️ | Deferred; current production path uses normal wallet gas |
 | Honest unconfigured state (no fake data before deploy) | ✅ | verified in-browser: `/pay` shows "Not configured yet" |
 | typecheck / lint / build green | ✅ | `tsc --noEmit` exit 0 · `eslint` exit 0 · `next build` ✓ 5 routes |
 | Visual check (mobile) | ✅ | home + pay + review + claim screenshotted at 375px; teal/serif design renders |

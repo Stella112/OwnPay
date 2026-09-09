@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Address } from "viem";
-import { useAccount, useChainId, usePublicClient } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
 import { SUPPORTED_TOKENS, tokenBySymbol, hasConfiguredTokens } from "@/lib/tokens";
 import { erc20Abi } from "@/lib/contracts";
 import { getDecimals, rawToUi, uiToRaw } from "@/lib/b20";
@@ -15,7 +15,6 @@ import { WalletButton } from "@/components/WalletButton";
 import { TxSteps, type TxStep } from "@/components/TxSteps";
 import { friendlyTxError } from "@/components/GrantComposer";
 import { BASESCAN_TX } from "@/lib/explorer";
-import { useOwnPayTransaction } from "@/components/OwnPayTransactionProvider";
 
 type Review = {
   token: Address;
@@ -38,7 +37,7 @@ export function TipComposer({
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
-  const { writeContractAsync } = useOwnPayTransaction();
+  const { writeContractAsync } = useWriteContract();
   const { requireEligibility } = useEligibility();
 
   const [symbol, setSymbol] = useState(SUPPORTED_TOKENS[0]?.symbol ?? "");

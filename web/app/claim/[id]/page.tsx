@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { Address, Hex } from "viem";
-import { useAccount, useChainId, usePublicClient } from "wagmi";
+import { useAccount, useChainId, usePublicClient, useWriteContract } from "wagmi";
 import { AppShell } from "@/components/AppShell";
 import { WalletButton } from "@/components/WalletButton";
 import { useGrant, useNowTicking } from "@/components/useGrant";
@@ -16,7 +16,6 @@ import { tokenByAddress } from "@/lib/tokens";
 import { friendlyTxError } from "@/components/GrantComposer";
 import { BASESCAN_TX } from "@/lib/explorer";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
-import { useOwnPayTransaction } from "@/components/OwnPayTransactionProvider";
 
 export default function ClaimPage() {
   const params = useParams<{ id: string }>();
@@ -175,7 +174,7 @@ function ClaimActions(props: {
   const { isConnected } = useAccount();
   const chainId = useChainId();
   const publicClient = usePublicClient();
-  const { writeContractAsync } = useOwnPayTransaction();
+  const { writeContractAsync } = useWriteContract();
   const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
   const [detail, setDetail] = useState<string>("");
   const [hash, setHash] = useState<Hex | undefined>();
@@ -260,7 +259,7 @@ function ClaimActions(props: {
 
 function RevokeAction({ id, onDone }: { id: bigint; onDone: () => void }) {
   const publicClient = usePublicClient();
-  const { writeContractAsync } = useOwnPayTransaction();
+  const { writeContractAsync } = useWriteContract();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [confirm, setConfirm] = useState(false);
