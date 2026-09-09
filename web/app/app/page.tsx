@@ -9,6 +9,8 @@ import { WalletButton } from "@/components/WalletButton";
 import { OwnPayLinkCard } from "@/components/OwnPayLinkTools";
 import { shortAddress } from "@/lib/recipient";
 import { lookupName } from "@/lib/recipient";
+import { UsdcBalance } from "@/components/UsdcBalance";
+import { OwnershipRulesPanel } from "@/components/OwnershipRulesPanel";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
 import { useEffect, useState } from "react";
 
@@ -69,8 +71,8 @@ export default function DashboardPage() {
           <section className="dashboard-hero-grid" aria-label="Dashboard summary">
             <div className="dashboard-summary panel-warm">
               <div className="summary-topline"><span>Ownership overview</span><span className="summary-live"><span className="caption-dot" /> Base mainnet</span></div>
-              <p className="summary-value">—</p>
-              <p className="summary-note">Connect a wallet to read your real grants and claimable ownership.</p>
+              <p className="summary-value"><UsdcBalance /></p>
+              <p className="summary-note">Live canonical USDC balance on Base. Stock ownership is shown from verified B20 reads.</p>
               {!isConnected && <WalletButton />}
               {wrongNetwork && <p className="dashboard-warning">Your wallet is connected to another network. OwnPay actions run on Base.</p>}
             </div>
@@ -93,6 +95,8 @@ export default function DashboardPage() {
             <div className="section-heading"><div><p className="eyebrow">Onchain activity</p><h2 id="grants-title">Your grants</h2></div><span className="section-count">Live from Base</span></div>
             <div className="empty-state"><span className="empty-state-icon"><OwnPayIcon name="spark" size={22} /></span><h3>{isConnected ? "No grants found yet." : "Connect to see your grants."}</h3><p>{isConnected ? "Send your first stock grant and start turning payments into ownership." : "Your dashboard never invents balances or activity. Connect a wallet to read the chain."}</p><Link href="/pay" className="btn btn-primary">Send stock <OwnPayIcon name="arrow" size={17} /></Link></div>
           </section>
+
+          {isConnected && <OwnershipRulesPanel />}
 
           <section id="activity" className="ownership-note">
             <div><span className="eyebrow">The OwnPay promise</span><h2>Ownership should move as easily as money.</h2><p>Stablecoins made global payments easier. OwnPay makes ownership programmable — with real Coinbase Tokenized Stocks, self-custodied on Base.</p></div>

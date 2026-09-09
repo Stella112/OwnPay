@@ -13,7 +13,7 @@ set -a
 . deploy/.env
 set +a
 
-npm --prefix web ci
+npm --prefix web ci --legacy-peer-deps
 npm --prefix web run build
 
 # Next's standalone server does not copy these folders automatically. Keep the

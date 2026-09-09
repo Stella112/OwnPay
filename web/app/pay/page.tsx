@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { GrantComposer } from "@/components/GrantComposer";
+import { PayChooser } from "@/components/PayChooser";
 
 export default function PayPage() {
   return (
@@ -13,7 +13,7 @@ export default function PayPage() {
             Grant stock that vests over time. You can revoke the unvested portion if plans change.
           </p>
         </div>
-        <GrantComposer mode="pay" />
+        <PayChooser />
       </div>
     </AppShell>
   );

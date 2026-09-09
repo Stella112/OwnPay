@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { shortAddress } from "@/lib/recipient";
+import { PrivyLoginButton } from "@/components/PrivyLoginButton";
 
 export function WalletButton() {
   const { address, isConnected } = useAccount();
@@ -44,6 +45,7 @@ export function WalletButton() {
 
   return (
     <div style={{ position: "relative" }}>
+      {process.env.NEXT_PUBLIC_PRIVY_APP_ID && <PrivyLoginButton />}
       <button
         className="btn btn-primary"
         style={compact}

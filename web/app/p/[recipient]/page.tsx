@@ -8,6 +8,7 @@ import { usePublicClient } from "wagmi";
 import { AppShell } from "@/components/AppShell";
 import { GrantComposer } from "@/components/GrantComposer";
 import { TipComposer } from "@/components/TipComposer";
+import { PayChooser } from "@/components/PayChooser";
 import { OwnPayIcon } from "@/components/OwnPayIcon";
 import { OwnPayLinkTools, OwnPayQrPreview } from "@/components/OwnPayLinkTools";
 import { resolveRecipient, shortAddress, type ResolvedRecipient } from "@/lib/recipient";
@@ -95,7 +96,7 @@ function OwnPayLinkView() {
         </section>
         <div className="link-content">
           <aside id="qr" className="link-side-card"><div><span className="eyebrow">Link. Scan. Pay. Own.</span><h2>Share ownership</h2><p>Every valid OwnPay Link comes with a scannable QR.</p></div><div className="link-side-qr"><OwnPayQrPreview recipient={effectiveResolved.name ?? effectiveResolved.address} mode={mode} /></div><span className="link-side-caption">{modeLabel} {effectiveResolved.name ?? shortAddress(effectiveResolved.address)}</span></aside>
-          <section className="link-form-card" aria-labelledby="mode-title"><div id="mode-title" className="mode-selector" role="group" aria-label="Choose how to send ownership"><button type="button" aria-pressed={mode === "pay"} onClick={() => changeMode("pay")}>Pay</button><button type="button" aria-pressed={mode === "gift"} onClick={() => changeMode("gift")}>Gift</button><button type="button" aria-pressed={mode === "tip"} onClick={() => changeMode("tip")}>Tip</button></div><div className="link-form-label"><h2>{modeLabel} {effectiveResolved.name ? `to ${effectiveResolved.name}` : "to this wallet"}</h2><span>Recipient locked</span></div>{mode === "tip" ? <TipComposer initialRecipient={effectiveResolved.address} lockedRecipient /> : <GrantComposer mode={mode} initialRecipient={effectiveResolved.address} lockedRecipient />}</section>
+          <section className="link-form-card" aria-labelledby="mode-title"><div id="mode-title" className="mode-selector" role="group" aria-label="Choose how to send ownership"><button type="button" aria-pressed={mode === "pay"} onClick={() => changeMode("pay")}>Pay</button><button type="button" aria-pressed={mode === "gift"} onClick={() => changeMode("gift")}>Gift</button><button type="button" aria-pressed={mode === "tip"} onClick={() => changeMode("tip")}>Tip</button></div><div className="link-form-label"><h2>{modeLabel} {effectiveResolved.name ? `to ${effectiveResolved.name}` : "to this wallet"}</h2><span>Recipient locked</span></div>{mode === "tip" ? <TipComposer initialRecipient={effectiveResolved.address} lockedRecipient /> : mode === "pay" ? <PayChooser initialRecipient={effectiveResolved.address} lockedRecipient /> : <GrantComposer mode={mode} initialRecipient={effectiveResolved.address} lockedRecipient />}</section>
         </div>
         <div id="link-tools"><OwnPayLinkTools recipient={effectiveResolved.name ?? effectiveResolved.address} displayName={displayName} mode={mode} /></div>
       </div>

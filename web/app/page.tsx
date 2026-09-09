@@ -18,7 +18,7 @@ export default function Home() {
           <div className="hero-copy">
             <span className="hero-kicker"><span className="kicker-icon"><OwnPayIcon name="spark" size={15} /></span> Pay. Gift. Tip. Own.</span>
             <h1 id="hero-title">Turn every payment<br /><span>into ownership.</span></h1>
-            <p>Pay workers, send gifts, tip people, and vest real Coinbase Tokenized Stocks on Base.</p>
+            <p>Get paid in USDC or real Coinbase Tokenized Stocks on Base, share one OwnPay Link, and choose how much of your income becomes ownership.</p>
             <div className="hero-actions"><Link href="/app" className="btn btn-primary btn-large">Get started <OwnPayIcon name="arrow" size={18} /></Link><a href="#how-it-works" className="btn btn-butter btn-large"><OwnPayIcon name="spark" size={17} /> How it works</a></div>
             <div className="hero-proof"><span className="proof-mark"><OwnPayIcon name="shield" size={15} /></span><span>Self-custodied on Base</span><span className="proof-divider" /><span>Official B20 assets</span></div>
           </div>
@@ -27,7 +27,7 @@ export default function Home() {
 
         <section id="product" className="principles-strip" aria-label="OwnPay principles">
           <div><span className="eyebrow">A new payment primitive</span><h2>Real assets. Real people. A brighter tomorrow.</h2></div>
-          <p>Cash moves value once. OwnPay gives every payment a chance to become a piece of something lasting.</p>
+          <p>OwnPay brings everyday payments, programmable stock ownership, and user-controlled automation together on Base.</p>
         </section>
 
         <section id="how-it-works" className="landing-section" aria-labelledby="how-title">

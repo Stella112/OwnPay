@@ -34,7 +34,7 @@ export const wagmiConfig = LOCAL
     })
   : createConfig({
       chains: [base],
-      connectors: [injected(), coinbaseWallet({ appName: "OwnPay", preference: "all" })],
+      connectors: [injected(), coinbaseWallet({ appName: "OwnPay" })],
       transports: { [base.id]: http(rpcUrl) },
       ssr: true,
       storage: createStorage({ storage: cookieStorage }),
