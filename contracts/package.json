@@ -1,0 +1,17 @@
+{
+  "name": "ownpay-contracts",
+  "version": "0.1.0",
+  "description": "OwnPay StockVesting escrow contract for Coinbase B20 tokenized stocks on Base",
+  "license": "MIT",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:base": "hardhat run scripts/deploy.js --network base",
+    "verify": "hardhat verify --network base"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.17",
+    "dotenv": "^16.4.7"
+  }
+}

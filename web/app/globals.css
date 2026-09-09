@@ -1,0 +1,267 @@
+/* OwnPay design system
+   Emotional qualities: trust, precision, warmth, ownership.
+   One accent: deep teal. Cool near-white ground, slate ink, quiet neutrals.
+   Hierarchy comes from spacing, scale and type — not from cardifying everything. */
+
+:root {
+  /* ground + ink */
+  --bg: #f5f8f8;
+  --surface: #ffffff;
+  --surface-sunken: #eef3f3;
+  --ink: #14201f;
+  --ink-soft: #3d4b4a;
+  --ink-muted: #6d7c7b;
+  --hairline: #dbe4e3;
+  --hairline-strong: #c6d2d1;
+
+  /* one accent: deep teal */
+  --accent: #0a6c6a;
+  --accent-strong: #075250;
+  --accent-tint: #e3f0ef;
+  --accent-ink: #ffffff;
+
+  /* semantic (kept quiet; success reuses the ownership teal) */
+  --success: #0a6c6a;
+  --danger: #a4362f;
+  --danger-tint: #f7e7e5;
+  --warn-ink: #7a5a12;
+  --warn-tint: #f6edd7;
+
+  --focus: #0a6c6a;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-lg: 22px;
+  --shadow-raise: 0 1px 2px rgba(16, 34, 33, 0.06), 0 8px 24px rgba(16, 34, 33, 0.06);
+
+  --font-ui: var(--font-instrument), "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+
+  --maxw: 460px; /* mobile-first content column */
+  color-scheme: light;
+}
+
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  /* redefined only where dark differs; roles stay consistent */
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1413;
+    --surface: #121d1c;
+    --surface-sunken: #0e1817;
+    --ink: #eef4f3;
+    --ink-soft: #c2cfce;
+    --ink-muted: #8a9998;
+    --hairline: #24322f;
+    --hairline-strong: #33443f;
+
+    --accent: #3fb8ad;
+    --accent-strong: #6fd3c8;
+    --accent-tint: #123130;
+    --accent-ink: #05201f;
+
+    --success: #3fb8ad;
+    --danger: #e8877f;
+    --danger-tint: #2a1a18;
+    --warn-ink: #e8cf95;
+    --warn-tint: #2a2413;
+
+    --focus: #3fb8ad;
+    --shadow-raise: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1413;
+  --surface: #121d1c;
+  --surface-sunken: #0e1817;
+  --ink: #eef4f3;
+  --ink-soft: #c2cfce;
+  --ink-muted: #8a9998;
+  --hairline: #24322f;
+  --hairline-strong: #33443f;
+  --accent: #3fb8ad;
+  --accent-strong: #6fd3c8;
+  --accent-tint: #123130;
+  --accent-ink: #05201f;
+  --success: #3fb8ad;
+  --danger: #e8877f;
+  --danger-tint: #2a1a18;
+  --warn-ink: #e8cf95;
+  --warn-tint: #2a2413;
+  --focus: #3fb8ad;
+  --shadow-raise: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* financial quantities: tabular, lining figures */
+.tnum {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+h1, h2, h3 { line-height: 1.15; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* --- layout --- */
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.container {
+  width: 100%;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.stack { display: flex; flex-direction: column; }
+.stack > * + * { margin-top: var(--gap, 16px); }
+.row { display: flex; align-items: center; gap: 12px; }
+.spread { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.muted { color: var(--ink-muted); }
+.soft { color: var(--ink-soft); }
+
+/* --- app bar --- */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--hairline);
+}
+.appbar .container { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+.brand-mark {
+  width: 22px; height: 22px; border-radius: 7px;
+  background: linear-gradient(150deg, var(--accent), var(--accent-strong));
+  display: grid; place-items: center; color: var(--accent-ink);
+  font-family: var(--font-display); font-weight: 600; font-size: 14px;
+}
+
+/* --- buttons --- */
+button { font-family: inherit; }
+.btn {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 13px 18px;
+  font-size: 15px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, transform 60ms ease;
+  min-height: 48px; /* touch target */
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:active { transform: translateY(0.5px); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-strong); }
+.btn-primary:disabled { background: var(--hairline-strong); color: var(--ink-muted); cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--hairline-strong); }
+.btn-ghost:hover { background: var(--surface-sunken); }
+.btn-danger { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--hairline)); }
+.btn-danger:hover { background: var(--danger-tint); }
+.btn-block { width: 100%; }
+
+:where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- form controls --- */
+label { font-size: 13px; font-weight: 550; color: var(--ink-soft); display: block; margin-bottom: 7px; }
+.input, .select, textarea.input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  padding: 13px 14px;
+  font-size: 16px; /* >=16 avoids iOS zoom */
+  color: var(--ink);
+  font-family: inherit;
+}
+.input:focus, .select:focus, textarea.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-tint); }
+.field-hint { font-size: 12px; color: var(--ink-muted); margin-top: 6px; }
+.field-error { font-size: 12px; color: var(--danger); margin-top: 6px; }
+
+/* --- selectable chips (asset / mode) --- */
+.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.choice {
+  border: 1px solid var(--hairline-strong);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 120ms, background 120ms;
+}
+.choice[aria-pressed="true"], .choice[data-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.choice .k { font-weight: 600; font-size: 15px; }
+.choice .v { font-size: 12px; color: var(--ink-muted); }
+
+/* --- surfaces used sparingly (not everything is a card) --- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.divide { border: 0; border-top: 1px solid var(--hairline); margin: 20px 0; }
+
+/* --- pills / status --- */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 550; padding: 5px 10px; border-radius: 999px; }
+.pill-accent { background: var(--accent-tint); color: var(--accent-strong); }
+.pill-muted { background: var(--surface-sunken); color: var(--ink-muted); }
+.pill-danger { background: var(--danger-tint); color: var(--danger); }
+.dot { width: 7px; height: 7px; border-radius: 999px; background: currentColor; }
+
+/* --- progress --- */
+.progress { height: 8px; background: var(--surface-sunken); border-radius: 999px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); border-radius: 999px; transition: width 500ms ease; }
+
+/* --- hero share figure (the star of the claim page) --- */
+.hero-figure {
+  font-family: var(--font-display);
+  font-weight: 560;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-size: clamp(56px, 20vw, 92px);
+}
+.hero-unit { font-family: var(--font-ui); font-size: 15px; font-weight: 550; color: var(--ink-soft); }
+
+/* --- meta rows --- */
+.meta { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; align-items: baseline; }
+.meta dt { color: var(--ink-muted); font-size: 13px; }
+.meta dd { margin: 0; text-align: right; font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  .progress > span { transition: none; }
+}

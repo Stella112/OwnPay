@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+**/node_modules/
+
+# secrets — NEVER commit
+.env
+.env.*
+!.env.example
+*.key
+keystore/
+
+# hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
+# next.js
+web/.next/
+web/out/
+web/build/
+web/.vercel/
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
