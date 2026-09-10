@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const identity = assertUserOwnsWallet(user, wallet);
     return NextResponse.json({ authorization: await getAgentAuthorization(identity.userId, identity.walletAddress) }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
+    console.error("OWNPAY_AUTOMATION_GET_ERROR", error instanceof Error ? error.message : String(error));
     const auth = authErrorResponse(error);
     if (auth.status !== 500) return NextResponse.json(auth.body, { status: auth.status });
     const response = databaseErrorResponse(error);
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: "Unsupported automation action." }, { status: 400 });
   } catch (error) {
+    console.error("OWNPAY_AUTOMATION_POST_ERROR", error instanceof Error ? error.message : String(error));
     const auth = authErrorResponse(error);
     if (auth.status !== 500) return NextResponse.json(auth.body, { status: auth.status });
     const response = databaseErrorResponse(error);

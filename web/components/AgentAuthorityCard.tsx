@@ -25,6 +25,17 @@ export function AgentAuthorityCard() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
 
+  async function refreshStatus() {
+    const token = identityToken ?? await getIdentityToken();
+    if (!token || !walletAddress) throw new Error("Sign in with an embedded wallet to manage agent access.");
+    const response = await fetch(`/api/automation?wallet=${encodeURIComponent(walletAddress)}`, { headers: { "x-privy-id-token": token }, cache: "no-store" });
+    const body = await response.json() as ApiResponse;
+    if (!response.ok) throw new Error(body.error ?? "Could not load agent status.");
+    const next = body.authorization ?? null;
+    setAuthorization(next);
+    return next;
+  }
+
   async function call(action: string, extra: Record<string, string> = {}, walletAddressOverride?: string) {
     const token = identityToken ?? await getIdentityToken();
     const requestedWalletAddress = walletAddressOverride ?? walletAddress;
@@ -63,6 +74,7 @@ export function AgentAuthorityCard() {
       }
       if (!authorityWalletId) throw new Error("Privy did not return the embedded wallet ID yet. Refresh and try again.");
       await call("activate", { privyWalletId: authorityWalletId }, authorityWallet.address);
+      await refreshStatus();
       setMessage("Limited agent authority is active, with automation paused until you resume it.");
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Delegation was not completed."); }
     finally { setBusy(false); }
@@ -92,6 +104,7 @@ export function AgentAuthorityCard() {
       {message && <div className="field-hint" role="status">{message}</div>}
       <div className="row">
         {!active ? <button className="btn btn-primary" onClick={enable} disabled={busy || !authenticated}>{busy ? "Waiting…" : "Grant limited access"}</button> : <><button className="btn btn-ghost" onClick={togglePause} disabled={busy}>{authorization?.automationPaused ? "Resume Automation" : "Pause Automation"}</button><button className="btn btn-ghost" onClick={revoke} disabled={busy}>Revoke Agent Access</button></>}
+        {!active && <button className="btn btn-ghost" onClick={() => { setBusy(true); setMessage(undefined); refreshStatus().catch((cause) => setMessage(cause instanceof Error ? cause.message : "Could not refresh agent status.")).finally(() => setBusy(false)); }} disabled={busy || !authenticated}>Refresh status</button>}
       </div>
     </div>
   </section>;
