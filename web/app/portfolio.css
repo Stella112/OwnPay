@@ -1,4 +1,8 @@
 .portfolio-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 20px; }
+.portfolio-heading-actions { display: flex; align-items: center; gap: 12px; }
+.wallet-copy-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 7px 10px; border: 1px solid var(--ownpay-line); border-radius: 9px; background: rgba(255,255,255,.7); color: var(--ownpay-clay); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+.wallet-copy-button:hover { background: var(--ownpay-butter); border-color: var(--ownpay-taupe); transform: translateY(-1px); }
+.wallet-copy-button-compact { white-space: nowrap; }
 .portfolio-metric { min-height: 112px; padding: 16px; border: 1px solid var(--ownpay-line); border-radius: 16px; background: rgba(255,253,248,.75); box-shadow: var(--shadow-soft); }
 .portfolio-metric > span, .portfolio-metric > small { display: block; color: var(--ownpay-muted); font-size: 11px; }
 .portfolio-metric strong { display: block; margin-top: 15px; color: var(--ownpay-clay); font-size: 18px; line-height: 1.25; }
@@ -28,8 +32,12 @@
 .portfolio-receiving strong { margin-top: 6px; font-size: 16px; }
 .portfolio-receiving small { margin-top: 5px; color: var(--ownpay-muted); font-size: 12px; }
 .portfolio-empty { margin-top: 20px; }
+.agent-authority-status { display: flex; align-items: center; gap: 9px; padding: 12px 14px; border: 1px solid var(--ownpay-line); border-radius: 12px; background: rgba(255,253,248,.7); color: var(--ownpay-clay); }
+.agent-authority-status .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ownpay-muted); }
+.agent-authority-status .dot-success { background: #2e9b60; }
 
 @media (max-width: 760px) {
+  .portfolio-heading-actions { align-items: flex-start; flex-direction: column; gap: 8px; }
   .portfolio-metrics { grid-template-columns: 1fr 1fr; }
   .portfolio-columns { grid-template-columns: 1fr; }
   .portfolio-receiving { align-items: flex-start; flex-direction: column; }

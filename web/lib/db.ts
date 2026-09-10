@@ -77,12 +77,82 @@ export async function saveOwnershipRule(userId: string, walletAddress: string, r
     const result = await client.query(
       `insert into ownpay_ownership_rules
         (id, user_id, wallet_address, version, enabled, trigger_asset, trigger_asset_address, minimum_payment_raw, allocation_bps, allocations, max_per_payment_raw, max_daily_raw, max_monthly_raw, slippage_bps)
-       values ($1, $2, $3, $4, false, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)
+       values ($1, $2, $3, $4, true, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13)
        returning *`,
       [id, userId, walletAddress, version, rule.triggerAsset, rule.triggerAssetAddress, rule.minimumPaymentRaw, rule.allocationBps, JSON.stringify(rule.allocations), rule.maxPerPaymentRaw, rule.maxDailyRaw, rule.maxMonthlyRaw, rule.slippageBps],
     );
     return mapRule(result.rows[0]);
   });
+}
+
+export type AgentAuthorization = {
+  status: "ACTIVE" | "REVOKED";
+  automationPaused: boolean;
+  privyDelegated: boolean;
+  privyWalletId: string | null;
+  delegatedAt: string | null;
+  revokedAt: string | null;
+};
+
+function mapAgentAuthorization(row: Record<string, unknown>): AgentAuthorization {
+  return {
+    status: String(row.status) as AgentAuthorization["status"],
+    automationPaused: Boolean(row.automation_paused),
+    privyDelegated: Boolean(row.privy_delegated),
+    privyWalletId: row.privy_wallet_id ? String(row.privy_wallet_id) : null,
+    delegatedAt: row.delegated_at ? new Date(String(row.delegated_at)).toISOString() : null,
+    revokedAt: row.revoked_at ? new Date(String(row.revoked_at)).toISOString() : null,
+  };
+}
+
+export async function getAgentAuthorization(userId: string, walletAddress: string) {
+  const result = await getPool().query(
+    "select * from ownpay_agent_authorizations where user_id = $1 and wallet_address = $2 limit 1",
+    [userId, walletAddress],
+  );
+  return result.rows[0] ? mapAgentAuthorization(result.rows[0]) : null;
+}
+
+export async function activateAgentAuthorization(userId: string, walletAddress: string, privyWalletId: string | null) {
+  return inTransaction(async (client) => {
+    await client.query(
+      "insert into ownpay_users (id, wallet_address) values ($1, $2) on conflict (id) do update set wallet_address = excluded.wallet_address, updated_at = now()",
+      [userId, walletAddress],
+    );
+    const result = await client.query(
+      `insert into ownpay_agent_authorizations
+        (id, user_id, wallet_address, status, automation_paused, privy_delegated, privy_wallet_id, delegated_at, revoked_at)
+       values ($1, $2, $3, 'ACTIVE', true, true, $4, now(), null)
+       on conflict (user_id, wallet_address) do update set
+         status = 'ACTIVE', privy_delegated = true, privy_wallet_id = excluded.privy_wallet_id,
+         delegated_at = coalesce(ownpay_agent_authorizations.delegated_at, now()),
+         revoked_at = null, updated_at = now()
+       returning *`,
+      [crypto.randomUUID(), userId, walletAddress, privyWalletId],
+    );
+    return mapAgentAuthorization(result.rows[0]);
+  });
+}
+
+export async function setAgentAutomationPaused(userId: string, walletAddress: string, paused: boolean) {
+  const result = await getPool().query(
+    `update ownpay_agent_authorizations set automation_paused = $3, updated_at = now()
+     where user_id = $1 and wallet_address = $2 and status = 'ACTIVE'
+     returning *`,
+    [userId, walletAddress, paused],
+  );
+  return result.rows[0] ? mapAgentAuthorization(result.rows[0]) : null;
+}
+
+export async function revokeAgentAuthorization(userId: string, walletAddress: string) {
+  const result = await getPool().query(
+    `update ownpay_agent_authorizations set status = 'REVOKED', automation_paused = true,
+       privy_delegated = false, revoked_at = now(), updated_at = now()
+     where user_id = $1 and wallet_address = $2
+     returning *`,
+    [userId, walletAddress],
+  );
+  return result.rows[0] ? mapAgentAuthorization(result.rows[0]) : null;
 }
 
 export function databaseErrorResponse(error: unknown) {

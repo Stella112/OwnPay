@@ -11,7 +11,8 @@ import { shortAddress } from "@/lib/recipient";
 import { lookupName } from "@/lib/recipient";
 import { UsdcBalance } from "@/components/UsdcBalance";
 import { OwnershipRulesPanel } from "@/components/OwnershipRulesPanel";
-import { PortfolioSession } from "@/components/PortfolioSession";
+import { WalletAddressCopy } from "@/components/WalletAddressCopy";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
 import { useEffect, useState } from "react";
 
@@ -39,19 +40,7 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="dashboard-frame">
-        <aside className="dashboard-sidebar" aria-label="Dashboard navigation">
-          <div className="dashboard-sidebar-label">Your account</div>
-          <Link className="dashboard-nav-item dashboard-nav-active" href="/app"><OwnPayIcon name="home" size={18} /> Home</Link>
-          <Link className="dashboard-nav-item" href="/pay"><OwnPayIcon name="send" size={18} /> Pay</Link>
-          <Link className="dashboard-nav-item" href="/gift"><OwnPayIcon name="gift" size={18} /> Gift</Link>
-          <Link className="dashboard-nav-item" href="/tip"><OwnPayIcon name="tip" size={18} /> Tip</Link>
-          <div className="dashboard-sidebar-rule" />
-          <a className="dashboard-nav-item" href="#grants"><OwnPayIcon name="claim" size={18} /> My grants</a>
-          <a className="dashboard-nav-item" href="#activity"><OwnPayIcon name="activity" size={18} /> Activity</a>
-          <div className="dashboard-sidebar-bottom">
-            <span className="dashboard-nav-item dashboard-nav-muted"><OwnPayIcon name="shield" size={18} /> Self-custodied</span>
-          </div>
-        </aside>
+        <DashboardSidebar active="home" />
 
         <main className="dashboard-main">
           <div className="dashboard-welcome-row">
@@ -66,6 +55,7 @@ export default function DashboardPage() {
                 <strong>{address ? shortAddress(address) : "Not signed in"}</strong>
                 <small>{isConnected ? (wrongNetwork ? "Switch to Base" : "Connected on Base") : "Sign in to see your grants"}</small>
               </span>
+              {address && <WalletAddressCopy address={address} compact />}
             </div>
           </div>
 
@@ -84,8 +74,6 @@ export default function DashboardPage() {
           </section>
 
           {isConnected && address && <OwnPayLinkCard recipient={basename ?? address} displayName={basename ?? shortAddress(address)} />}
-
-          <PortfolioSession />
 
           <section className="dashboard-section" aria-labelledby="quick-actions-title">
             <div className="section-heading"><div><p className="eyebrow">Move ownership</p><h2 id="quick-actions-title">Quick actions</h2></div><Link href="/" className="text-link">How OwnPay works <OwnPayIcon name="arrow" size={16} /></Link></div>

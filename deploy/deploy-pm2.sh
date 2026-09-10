@@ -13,6 +13,14 @@ set -a
 . deploy/.env
 set +a
 
+# The quorum ID is safe to expose to the browser because it identifies the
+# signer grant; the private key and app secret remain server-only. Allow the
+# VPS env to keep one canonical value while still inlining the public ID into
+# the Next.js build.
+if [ -z "${NEXT_PUBLIC_PRIVY_KEY_QUORUM_ID:-}" ] && [ -n "${PRIVY_KEY_QUORUM_ID:-}" ]; then
+  export NEXT_PUBLIC_PRIVY_KEY_QUORUM_ID="$PRIVY_KEY_QUORUM_ID"
+fi
+
 npm --prefix web ci --legacy-peer-deps
 npm --prefix web run build
 

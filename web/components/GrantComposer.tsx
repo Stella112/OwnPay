@@ -237,7 +237,7 @@ export function GrantComposer({
         <h2 style={{ fontSize: 18, marginBottom: 8 }}>Not configured yet</h2>
         <p className="soft" style={{ margin: 0, fontSize: 14 }}>
           {isVestingConfigured()
-            ? "No official token addresses are configured. Add verified AAPLc/NVDAc addresses to the allowlist."
+            ? "No official token addresses are configured. Add a verified Coinbase B20 stock address to the allowlist."
             : "The StockVesting contract address isn't set. Deploy it and set NEXT_PUBLIC_STOCK_VESTING_ADDRESS."}
         </p>
       </div>

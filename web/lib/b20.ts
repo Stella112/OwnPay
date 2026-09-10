@@ -21,7 +21,7 @@ export type ReadClient = {
  * UI (a.k.a. "scaled") units is a *display* concern and must go through here so
  * the logic is tested once and stays correct across multiplier changes.
  *
- * Preference order. Verified against the official AAPLc/NVDAc tokens on Base
+ * Preference order. Verified against the official Coinbase B20 tokens on Base
  * mainnet (chainId 8453) on 2026-09-09: the real B20 surface is
  * scaledBalanceOf/toScaledBalance/toRawBalance/multiplier. `toUIAmount` /
  * `fromUIAmount` do NOT exist on the real token, so they are only a forward-compat

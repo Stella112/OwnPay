@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { parseAbiItem, type Address, type Hex } from "viem";
 import { useAccount, useChainId, usePublicClient } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +10,7 @@ import { getDecimals, rawToUi } from "@/lib/b20";
 import { SUPPORTED_TOKENS, tokenByAddress } from "@/lib/tokens";
 import { BASE_USDC_ADDRESS } from "@/lib/stablecoins";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
+import { WalletAddressCopy } from "@/components/WalletAddressCopy";
 
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 const memoTransferEvent = parseAbiItem("event MemoTransfer(address indexed from, address indexed to, uint256 value, bytes32 memo)");
@@ -108,10 +108,10 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
   );
 
   return (
-    <section className="dashboard-section" aria-labelledby="portfolio-title">
+    <section id="portfolio" className="dashboard-section" aria-labelledby="portfolio-title">
       <div className="section-heading">
         <div><p className="eyebrow">Your portfolio</p><h2 id="portfolio-title">Everything you own and send.</h2></div>
-        <a className="section-count" href={BASESCAN_ADDRESS(address)} target="_blank" rel="noopener noreferrer">View wallet ↗</a>
+        <div className="portfolio-heading-actions"><a className="section-count" href={BASESCAN_ADDRESS(address)} target="_blank" rel="noopener noreferrer">View wallet ↗</a><WalletAddressCopy address={address} compact /></div>
       </div>
 
       <div className="portfolio-metrics">

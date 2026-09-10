@@ -7,6 +7,25 @@ create table if not exists ownpay_users (
   updated_at timestamptz not null default now()
 );
 
+-- Privy delegation is user-controlled authority, separate from a saved rule.
+-- ACTIVE means the authenticated user completed Privy's delegation flow and
+-- the server observed the delegated wallet in the verified identity token.
+-- automation_paused is deliberately independent from revocation.
+create table if not exists ownpay_agent_authorizations (
+  id uuid primary key,
+  user_id text not null references ownpay_users(id),
+  wallet_address text not null,
+  status text not null default 'REVOKED' check (status in ('ACTIVE', 'REVOKED')),
+  automation_paused boolean not null default true,
+  privy_delegated boolean not null default false,
+  privy_wallet_id text,
+  delegated_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, wallet_address)
+);
+
 create table if not exists ownpay_ownership_rules (
   id uuid primary key,
   user_id text not null references ownpay_users(id),
@@ -50,3 +69,21 @@ create table if not exists ownpay_execution_receipts (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- The isolated Ownership Agent stores its scan cursor separately from user data.
+-- A cursor is scoped to the chain and canonical trigger asset so a restart can
+-- resume without replaying already processed transfer logs.
+create table if not exists ownpay_agent_cursors (
+  chain_id integer not null,
+  asset_address text not null,
+  last_scanned_block numeric(78,0) not null,
+  updated_at timestamptz not null default now(),
+  primary key (chain_id, asset_address)
+);
+
+-- These fields let the worker persist the exact integer allocation it
+-- calculated, even when execution is blocked by an unavailable route or
+-- authority. They are never treated as a successful execution.
+alter table ownpay_execution_receipts add column if not exists allocation_raw numeric(78,0);
+alter table ownpay_execution_receipts add column if not exists allocation jsonb;
+create unique index if not exists ownpay_execution_receipts_event_id_uq on ownpay_execution_receipts(event_id);

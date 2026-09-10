@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatUnits } from "viem";
-import { useIdentityToken, usePrivy } from "@privy-io/react-auth";
+import { getIdentityToken, useIdentityToken, usePrivy } from "@privy-io/react-auth";
 import { useAccount } from "wagmi";
 import type { OwnershipRule, OwnershipRuleCandidate } from "@/lib/ownership-rules";
 
@@ -16,21 +16,29 @@ export function OwnershipRulesPanel() {
   const { authenticated } = usePrivy();
   const { identityToken } = useIdentityToken();
 
-  function authHeaders() {
-    if (!identityToken) throw new Error("Your sign-in session is still loading. Try again in a moment.");
-    return { "content-type": "application/json", "x-privy-id-token": identityToken };
+  async function authHeaders() {
+    const token = identityToken ?? await getIdentityToken();
+    if (!token) throw new Error("Your sign-in session is still loading. Try again in a moment.");
+    return { "content-type": "application/json", "x-privy-id-token": token };
   }
 
   useEffect(() => {
-    if (!authenticated || !identityToken || !address) return;
-    fetch(`/api/ownership-rules?wallet=${encodeURIComponent(address)}`, { headers: { "x-privy-id-token": identityToken }, cache: "no-store" })
+    if (!authenticated || !address) return;
+    let cancelled = false;
+    (async () => {
+      const token = identityToken ?? await getIdentityToken();
+      if (!token || cancelled) return;
+      return fetch(`/api/ownership-rules?wallet=${encodeURIComponent(address)}`, { headers: { "x-privy-id-token": token }, cache: "no-store" });
+    })()
       .then(async (response) => {
+        if (!response) return null;
         if (response.status === 404) return null;
         const body = await response.json() as { error?: string; rule?: OwnershipRule | null };
         if (!response.ok) throw new Error(body.error ?? "Could not load your saved rule.");
         return body.rule ?? null;
       })
       .then((saved) => {
+        if (cancelled) return;
         if (!saved) return;
         setRule(saved);
         setCandidate({
@@ -44,14 +52,15 @@ export function OwnershipRulesPanel() {
         });
         setStatus("saved");
       })
-      .catch((cause) => setError(cause instanceof Error ? cause.message : "Could not load your saved rule."));
+      .catch((cause) => { if (!cancelled) setError(cause instanceof Error ? cause.message : "Could not load your saved rule."); });
+    return () => { cancelled = true; };
   }, [address, authenticated, identityToken]);
 
   async function createRule() {
     setError(undefined);
     setStatus("parsing");
     try {
-      const response = await fetch("/api/ownership-rules/parse", { method: "POST", headers: authHeaders(), body: JSON.stringify({ instruction }) });
+      const response = await fetch("/api/ownership-rules/parse", { method: "POST", headers: await authHeaders(), body: JSON.stringify({ instruction }) });
       const body = await response.json() as { error?: string; candidate?: OwnershipRuleCandidate; rule?: OwnershipRule };
       if (!response.ok || !body.candidate || !body.rule) throw new Error(body.error ?? "Could not create a rule review.");
       setCandidate(body.candidate);
@@ -69,7 +78,7 @@ export function OwnershipRulesPanel() {
     setStatus("saving");
     try {
       if (!address) throw new Error("A signed-in wallet is required.");
-      const response = await fetch("/api/ownership-rules", { method: "POST", headers: authHeaders(), body: JSON.stringify({ walletAddress: address, candidate }) });
+      const response = await fetch("/api/ownership-rules", { method: "POST", headers: await authHeaders(), body: JSON.stringify({ walletAddress: address, candidate }) });
       const body = await response.json() as { error?: string; rule?: OwnershipRule };
       if (!response.ok || !body.rule) throw new Error(body.error ?? "Could not save the rule.");
       setRule(body.rule);

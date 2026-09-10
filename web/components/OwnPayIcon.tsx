@@ -1,4 +1,4 @@
-type IconName = "arrow" | "home" | "send" | "gift" | "tip" | "claim" | "activity" | "shield" | "spark" | "menu" | "close" | "wallet" | "check";
+type IconName = "arrow" | "home" | "send" | "gift" | "tip" | "claim" | "activity" | "shield" | "spark" | "menu" | "close" | "wallet" | "check" | "copy";
 
 const paths: Record<IconName, React.ReactNode> = {
   arrow: <><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></>,
@@ -14,6 +14,7 @@ const paths: Record<IconName, React.ReactNode> = {
   close: <><path d="m6 6 12 12M18 6 6 18" /></>,
   wallet: <><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H19a1 1 0 0 1 1 1v15H6.5A2.5 2.5 0 0 1 4 17.5v-11Z" /><path d="M4 8h16" /><path d="M16 13h2" /></>,
   check: <><path d="m5 12 4 4L19 6" /></>,
+  copy: <><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
 };
 
 export function OwnPayIcon({ name, size = 20 }: { name: IconName; size?: number }) {

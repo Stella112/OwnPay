@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/prepare-standalone.mjs",
+    "agent": "node agent/ownership-agent.mjs",
+    "agent:test": "node --test agent/routes/b20-usdc-route.test.mjs",
     "start": "next start",
     "lint": "eslint"
   },

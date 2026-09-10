@@ -6,7 +6,7 @@ export default function PayPage() {
   return (
     <AppShell>
       <div className="container stack" style={{ ["--gap" as string]: "18px" }}>
-        <Link href="/" className="muted" style={{ fontSize: 13 }}>‹ Back</Link>
+        <Link href="/app" className="muted" style={{ fontSize: 13 }}>‹ Back to dashboard</Link>
         <div>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 30, letterSpacing: "-0.02em" }}>Pay in stock</h1>
           <p className="soft" style={{ fontSize: 15, marginTop: 8, lineHeight: 1.5 }}>

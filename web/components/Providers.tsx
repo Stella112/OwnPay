@@ -5,6 +5,7 @@ import { WagmiProvider as PrivyWagmiProvider } from "@privy-io/wagmi";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { base } from "wagmi/chains";
 import { wagmiConfig } from "@/lib/wagmi";
 import { EligibilityProvider } from "@/components/Eligibility";
 
@@ -20,5 +21,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
   if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
     return <WagmiProvider config={wagmiConfig}><QueryClientProvider client={queryClient}>{content}</QueryClientProvider></WagmiProvider>;
   }
-  return <PrivyProvider appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID} config={{ embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } } }}><QueryClientProvider client={queryClient}><PrivyWagmiProvider config={wagmiConfig}>{content}</PrivyWagmiProvider></QueryClientProvider></PrivyProvider>;
+  return <PrivyProvider appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID} config={{ supportedChains: [base], defaultChain: base, embeddedWallets: { ethereum: { createOnLogin: "all-users" } } }}><QueryClientProvider client={queryClient}><PrivyWagmiProvider config={wagmiConfig}>{content}</PrivyWagmiProvider></QueryClientProvider></PrivyProvider>;
 }

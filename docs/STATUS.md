@@ -41,9 +41,12 @@ Next.js 16.3.4 (Turbopack) · React 19 · wagmi 3.7 · viem 2.56 · @tanstack/re
 | Wrong-network protection (Switch to Base) | ✅ | `web/components/AppShell.tsx` NetworkNotice |
 | Privy sponsored transaction rail (Base mainnet) | ▫️ | Deferred; current production path uses normal wallet gas |
 | Authenticated Privy identity binding for Ownership Rules | ✅ | `web/lib/server-auth.ts` verifies Privy identity tokens and checks the requested wallet is linked |
-| Durable Ownership Rules PostgreSQL adapter | 🚧 | `web/lib/db.ts` + `/api/ownership-rules`; production activation is blocked until `DATABASE_URL` and `PRIVY_VERIFICATION_KEY` are provisioned |
+| Durable Ownership Rules PostgreSQL adapter | ✅ | `web/lib/db.ts` + `/api/ownership-rules`; production schema applied to managed PostgreSQL |
+| Isolated Ownership Agent worker | 🚧 | `web/agent/ownership-agent.mjs`; Base USDC scanner with idempotent event state, limits, guarded Privy authority checks, allocation planning, strict route validation, and fail-closed receipts |
+| Privy delegated agent authority controls | 🚧 | `/automation`, `/api/automation`, and `ownpay_agent_authorizations`; pause/revoke controls are implemented, but no server signer is enabled |
+| USDC→B20 route guard | 🚧 | `web/agent/routes/b20-usdc-route.mjs` validates Base USDC, official B20 assets, recipients, slippage, and integer totals; execution remains blocked with `AUTOMATION_UNAVAILABLE` until a verified venue and signer are configured |
 | Honest unconfigured state (no fake data before deploy) | ✅ | verified in-browser: `/pay` shows "Not configured yet" |
-| typecheck / lint / build green | ✅ | `tsc --noEmit` exit 0 · `eslint` exit 0 · `next build` ✓ 5 routes |
+| typecheck / build | ✅ | `tsc --noEmit` exit 0 · `next build` ✓; repository lint still reports pre-existing hook/navigation errors outside this phase |
 | Visual check (mobile) | ✅ | home + pay + review + claim screenshotted at 375px; teal/serif design renders |
 | **End-to-end grant→claim→tip against a live chain** | ✅ | Local Hardhat pass — see Task A below |
 
@@ -60,7 +63,7 @@ by trusting docs or a page scrape.
 | Official AAPLc address | ✅ | `0xb200000000000000000000C2e324d24d7eEcd1fb` — symbol `AAPLc`, "Apple Inc.", **decimals 8**, multiplier 1e18, `toScaledBalance` responds |
 | Official NVDAc address | ✅ | `0xb20000000000000000000078ee7ce2fE4908108C` — symbol `NVDAc`, "NVIDIA Corporation", **decimals 8**, multiplier 1e18 |
 | Decimals read dynamically (not hardcoded 18) | ✅ | real tokens are **8 decimals**; `getDecimals()` reads per-token |
-| Allowlist records verified addresses | ✅ | `web/lib/tokens.ts` defaults to the two verified addresses (env can override for local) |
+| Allowlist records verified addresses | ✅ | `web/lib/tokens.ts` defaults to the ten official Base listings (env can override for local) |
 
 > Finding: the earlier build appendix said to prefer `toUIAmount`/`fromUIAmount`.
 > That was wrong — those selectors are absent on the real token. `StockVesting.sol`

@@ -48,6 +48,23 @@ export function assertUserOwnsWallet(user: User, walletAddress: string) {
   return { userId: user.id, walletAddress: wanted };
 }
 
+/**
+ * Confirm the requested wallet is an OwnPay embedded wallet. The signer grant
+ * itself is completed by Privy's authenticated `addSigners` call in the
+ * browser; the server-side Privy swap request remains the final enforcement
+ * point because Privy rejects requests from wallets without that signer.
+ */
+export function isPrivyEmbeddedWalletDelegated(user: User, walletAddress: string) {
+  const wanted = normalized(walletAddress);
+  const linked = user.linked_accounts as unknown as Array<Record<string, unknown>>;
+  return linked.some((account) => {
+    if (typeof account.address === "string" && normalized(account.address) === wanted) {
+      return account.type === "wallet" && account.connector_type === "embedded" && account.wallet_client_type === "privy";
+    }
+    return false;
+  });
+}
+
 export function authErrorResponse(error: unknown) {
   if (error instanceof AuthConfigurationError) return { status: 503, body: { error: error.message } };
   if (error instanceof AuthenticationError) return { status: 401, body: { error: error.message } };
