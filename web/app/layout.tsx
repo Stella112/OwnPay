@@ -35,6 +35,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${instrument.variable} ${fraunces.variable}`}>
+      <head>
+        <meta name="base:app_id" content="6aa211720043db0e3d505c75" />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>
