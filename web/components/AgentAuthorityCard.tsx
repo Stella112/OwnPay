@@ -55,7 +55,7 @@ export function AgentAuthorityCard() {
   }, [authenticated, identityToken, walletAddress]);
 
   async function enable() {
-    setBusy(true); setMessage(undefined);
+    setBusy(true); setMessage("Opening Privy authorization…");
     try {
       if (!walletsReady) throw new Error("Your Privy wallet is still loading. Try again in a moment.");
       if (!keyQuorumId) throw new Error("Agent signer configuration is not available yet. Refresh after the deployment finishes.");
@@ -103,7 +103,7 @@ export function AgentAuthorityCard() {
       <p className="field-hint" style={{ margin: 0 }}>{!walletsReady ? "Loading your Privy wallet…" : embeddedWallet ? "Embedded wallet ready for limited automation." : "An embedded wallet will be created when you grant access. External wallets remain supported for manual payments."}</p>
       {message && <div className="field-hint" role="status">{message}</div>}
       <div className="row">
-        {!active ? <button className="btn btn-primary" onClick={enable} disabled={busy || !authenticated}>{busy ? "Waiting…" : "Grant limited access"}</button> : <><button className="btn btn-ghost" onClick={togglePause} disabled={busy}>{authorization?.automationPaused ? "Resume Automation" : "Pause Automation"}</button><button className="btn btn-ghost" onClick={revoke} disabled={busy}>Revoke Agent Access</button></>}
+        {!active ? <button type="button" className="btn btn-primary" onClick={() => { void enable(); }} disabled={busy || !authenticated}>{busy ? "Waiting…" : "Grant limited access"}</button> : <><button type="button" className="btn btn-ghost" onClick={togglePause} disabled={busy}>{authorization?.automationPaused ? "Resume Automation" : "Pause Automation"}</button><button type="button" className="btn btn-ghost" onClick={revoke} disabled={busy}>Revoke Agent Access</button></>}
         {!active && <button className="btn btn-ghost" onClick={() => { setBusy(true); setMessage(undefined); refreshStatus().catch((cause) => setMessage(cause instanceof Error ? cause.message : "Could not refresh agent status.")).finally(() => setBusy(false)); }} disabled={busy || !authenticated}>Refresh status</button>}
       </div>
     </div>
