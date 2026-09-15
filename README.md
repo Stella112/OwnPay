@@ -1,13 +1,23 @@
 # OwnPay
 
-Pay, gift, and tip people with real Coinbase B20 tokenized stocks on **Base**.
+OwnPay is a Base-native payments app that turns everyday money movement into
+programmable ownership.
 
-OwnPay turns tokenized stocks from something you *trade* into something you can
-*program* into compensation, gifts, and rewards:
+People can use one OwnPay Link to pay, gift, or tip in USDC and eligible Coinbase
+B20 tokenized stocks. Senders can define how qualifying payments become
+ownership, while recipients claim assets to their own embedded wallet and track
+the result in a dedicated portfolio.
 
-- **Pay** — grant stock that vests over time (revocable by the employer).
-- **Gift** — an irreversible stock gift that unlocks all-at-once on a date.
+OwnPay turns tokenized stocks from something you only *trade* into something you
+can *program* into compensation, gifts, and rewards:
+
+- **Pay** — grant stock that vests over time and can be revoked before vesting.
+- **Gift** — send an irreversible stock gift that unlocks all at once on a date.
 - **Tip** — send stock instantly with an onchain memo.
+- **Portfolio** — see USDC, owned stock, vested grants, spending, sent payments,
+  tips, and transaction history in one place.
+
+Live app: [ownpay.online](https://ownpay.online)
 
 ## Repository layout
 
@@ -15,6 +25,46 @@ OwnPay turns tokenized stocks from something you *trade* into something you can
 contracts/   Hardhat project: StockVesting.sol escrow + tests + deploy script
 web/         Next.js app: wallet, Pay/Gift/Tip flows, mobile claim page  (in progress)
 ```
+
+## Why OwnPay
+
+Traditional payment tools stop at settlement. OwnPay adds an ownership layer
+that makes compensation and community rewards more durable. A business can
+send a grant instead of a promise, a creator can receive tips that build a
+portfolio, and a recipient can see exactly what they own and what is still
+vesting.
+
+The product is designed around self-custody, Base mainnet, verified asset
+contracts, explicit user approval, and honest onchain balances. OwnPay does not
+invent stock prices, balances, or transaction history.
+
+## The future
+
+OwnPay is starting with the core rail: Base payments, gifts, tips, vesting, and
+portfolio visibility. The longer-term goal is to make ownership programmable
+enough to support the way people actually work, earn, and reward one another.
+
+Planned directions include:
+
+- **USDC-to-ownership rules** — let users decide what portion of qualifying USDC
+  payments should become eligible tokenized-stock ownership.
+- **More official B20 assets** — expand the supported stock catalog as verified
+  assets and compliant distribution routes become available.
+- **Recurring ownership** — support recurring grants, employer matches, and
+  stock-back rewards for ongoing work or spending.
+- **A safer ownership agent** — allow users to delegate narrowly scoped,
+  revocable actions within saved limits, with every action validated against
+  approved Base assets and contracts.
+- **Better discovery and portability** — make OwnPay Links easier to share and
+  help recipients take their self-custodied ownership wherever they use Base.
+- **Lower-friction transactions** — revisit sponsorship and batching when the
+  production funding and infrastructure are ready, without compromising user
+  approval or transaction transparency.
+
+These are future directions, not promises that every feature is available
+today. See [`docs/STATUS.md`](docs/STATUS.md) for the evidence-based status of
+each component and the owner-only steps required for real mainnet contract
+deployment and live grant activity.
 
 ## Design principles (from the build spec)
 

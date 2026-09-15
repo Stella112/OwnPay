@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         format: OWNERSHIP_RULE_JSON_SCHEMA,
         options: { temperature: 0 },
         messages: [
-          { role: "system", content: "Interpret the user's instruction into the exact JSON schema. Only incoming Base USDC, and only verified assets listed in the schema, are allowed. Never invent an address, a route, a wallet permission, or a transaction. Return JSON only." },
+          { role: "system", content: "Interpret the user's instruction into the exact JSON schema. The trigger is incoming Base USDC. Verified destinations may be Coinbase B20 assets or DPRI, the verified GetEquity Dangote Petroleum Refinery market asset settled with cNGN on Base. Never invent an address, a route, a wallet permission, or a transaction. Return JSON only." },
           { role: "user", content: instruction },
         ],
       }),

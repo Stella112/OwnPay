@@ -6,6 +6,7 @@ import { createB20UsdcRoute } from "./routes/b20-usdc-route.mjs";
 const { Pool } = pg;
 const BASE_CHAIN_ID = 8453;
 const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+const DPRI = "0xc68b460fe4c916Fd17d6ab6b181A409C763002d9".toLowerCase();
 const VERIFIED_B20 = new Map([
   ["AAPLc", "0xb200000000000000000000C2e324d24d7eEcd1fb".toLowerCase()],
   ["NVDAc", "0xb20000000000000000000078ee7ce2fE4908108C".toLowerCase()],
@@ -18,6 +19,7 @@ const VERIFIED_B20 = new Map([
   ["SPCXc", "0xb2000000000000000000007b9fcbd005511aCBd5".toLowerCase()],
   ["TSLAc", "0xb2000000000000000000001e800a7f5189430cD0".toLowerCase()],
 ]);
+const VERIFIED_AUTOMATION_ASSETS = new Map([...VERIFIED_B20, ["DPRI", DPRI]]);
 const BPS = 10_000n;
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 
@@ -67,9 +69,9 @@ function calculateAllocation(paymentRaw, rule) {
   let remaining = total;
   const plan = allocations.map((allocation, index) => {
     const symbol = String(allocation?.assetSymbol || "");
-    const address = VERIFIED_B20.get(symbol);
+    const address = VERIFIED_AUTOMATION_ASSETS.get(symbol);
     const weight = BigInt(allocation?.weightBps ?? 0);
-    if (!address || weight <= 0n || weight > BPS) throw new Error("UNSUPPORTED_STOCK_ASSET");
+    if (!address || weight <= 0n || weight > BPS) throw new Error("UNSUPPORTED_AUTOMATION_ASSET");
     const amount = index === allocations.length - 1 ? remaining : (total * weight) / BPS;
     remaining -= amount;
     return { assetSymbol: symbol, assetAddress: address, weightBps: Number(weight), amountRaw: amount.toString() };
@@ -168,6 +170,7 @@ async function processPayment(pool, log) {
     if (monthlyTotal + BigInt(allocation.totalRaw) > BigInt(rule.max_monthly_raw)) errorCode = "MONTHLY_LIMIT";
     if (!errorCode && authorityError) errorCode = authorityError;
     if (!errorCode && config.mode !== "execute") errorCode = "AGENT_OBSERVE_MODE";
+    if (!errorCode && allocation.allocations.some((item) => item.assetSymbol === "DPRI")) errorCode = "GETEQUITY_ROUTE_NOT_CONFIGURED";
     if (!errorCode && !route.status.enabled) errorCode = route.status.reason;
 
     const receiptId = randomUUID();

@@ -1,11 +1,15 @@
 import type { Address } from "viem";
 import { getAddress, isAddress } from "viem";
-import { normalize } from "viem/ens";
+import { namehash, normalize } from "viem/ens";
 
-/** Minimal structural client type for ENS/Basename reads (decoupled from viem's PublicClient). */
+/** Minimal structural client type for Base Basename reads (decoupled from viem's PublicClient). */
 export type NameClient = {
-  getEnsAddress(args: { name: string; universalResolverAddress: Address }): Promise<Address | null>;
-  getEnsName(args: { address: Address; universalResolverAddress: Address }): Promise<string | null>;
+  readContract(args: {
+    address: Address;
+    abi: readonly unknown[];
+    functionName: string;
+    args?: readonly unknown[];
+  }): Promise<unknown>;
 };
 
 /**
@@ -13,20 +17,44 @@ export type NameClient = {
  *
  * Rules:
  *  - A syntactically valid EVM address is accepted (checksummed).
- *  - A Basename (`*.base.eth`, or `*.eth`) is resolved onchain. If it cannot be
+ *  - A Basename (`*.base.eth`) is resolved onchain. If it cannot be
  *    resolved, the recipient is BLOCKED — an unresolved name must never reach a
  *    transaction.
  *  - Reverse lookup (address -> name) is display-only and never gates sending.
  *
- * Base Basename resolution needs a UniversalResolver address. Rather than ship a
- * guessed address, it is read from NEXT_PUBLIC_BASENAME_UNIVERSAL_RESOLVER. Until
- * that is set to a verified value, Basename resolution reports "unavailable" and
- * raw addresses still work — we never resolve against an unverified resolver.
+ * Base does not use Ethereum's UniversalResolver for native Basenames. Resolution
+ * is a two-step read through the official Base Registry and the name's L2Resolver.
+ * These addresses are published by Base's basenames repository.
  */
 
-const UNIVERSAL_RESOLVER = process.env.NEXT_PUBLIC_BASENAME_UNIVERSAL_RESOLVER as
-  | Address
-  | undefined;
+const BASE_BASENAMES_REGISTRY = "0xb94704422c2a1e396835a571837aa5ae53285a95" as Address;
+
+const registryAbi = [
+  {
+    type: "function",
+    name: "resolver",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
+
+const resolverAbi = [
+  {
+    type: "function",
+    name: "addr",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "name",
+    stateMutability: "view",
+    inputs: [{ name: "node", type: "bytes32" }],
+    outputs: [{ name: "", type: "string" }],
+  },
+] as const;
 
 export type ResolvedRecipient = {
   address: Address;
@@ -39,7 +67,29 @@ export type RecipientResult =
   | { ok: false; error: "invalid" | "unresolved" | "basename-unavailable"; message: string };
 
 function looksLikeName(input: string): boolean {
-  return /\.(base\.)?eth$/i.test(input) && !input.includes(" ");
+  return /\.base\.eth$/i.test(input) && !input.includes(" ");
+}
+
+async function readBasenameAddress(client: NameClient, name: string): Promise<Address | null> {
+  const node = namehash(name);
+  const resolver = (await client.readContract({
+    address: BASE_BASENAMES_REGISTRY,
+    abi: registryAbi,
+    functionName: "resolver",
+    args: [node],
+  })) as Address;
+
+  if (!resolver || !isAddress(resolver) || /^0x0{40}$/i.test(resolver)) return null;
+
+  const address = (await client.readContract({
+    address: getAddress(resolver),
+    abi: resolverAbi,
+    functionName: "addr",
+    args: [node],
+  })) as Address;
+
+  if (!address || !isAddress(address) || /^0x0{40}$/i.test(address)) return null;
+  return getAddress(address);
 }
 
 export async function resolveRecipient(
@@ -56,13 +106,6 @@ export async function resolveRecipient(
   }
 
   if (looksLikeName(input)) {
-    if (!UNIVERSAL_RESOLVER || !isAddress(UNIVERSAL_RESOLVER)) {
-      return {
-        ok: false,
-        error: "basename-unavailable",
-        message: "Basename resolution isn't configured yet. Paste a wallet address instead.",
-      };
-    }
     let name: string;
     try {
       name = normalize(input);
@@ -70,10 +113,7 @@ export async function resolveRecipient(
       return { ok: false, error: "invalid", message: "That doesn't look like a valid name." };
     }
     try {
-      const address = await client.getEnsAddress({
-        name,
-        universalResolverAddress: UNIVERSAL_RESOLVER,
-      });
+      const address = await readBasenameAddress(client, name);
       if (!address) {
         return { ok: false, error: "unresolved", message: `${input} doesn't resolve to an address.` };
       }
@@ -95,10 +135,22 @@ export async function lookupName(
   client: NameClient,
   address: Address,
 ): Promise<string | undefined> {
-  if (!UNIVERSAL_RESOLVER || !isAddress(UNIVERSAL_RESOLVER)) return undefined;
   try {
-    const name = await client.getEnsName({ address, universalResolverAddress: UNIVERSAL_RESOLVER });
-    return name ?? undefined;
+    const reverseNode = namehash(`${address.slice(2).toLowerCase()}.addr.reverse`);
+    const resolver = (await client.readContract({
+      address: BASE_BASENAMES_REGISTRY,
+      abi: registryAbi,
+      functionName: "resolver",
+      args: [reverseNode],
+    })) as Address;
+    if (!resolver || !isAddress(resolver) || /^0x0{40}$/i.test(resolver)) return undefined;
+    const name = (await client.readContract({
+      address: getAddress(resolver),
+      abi: resolverAbi,
+      functionName: "name",
+      args: [reverseNode],
+    })) as string;
+    return name || undefined;
   } catch {
     return undefined;
   }

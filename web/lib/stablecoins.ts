@@ -7,7 +7,7 @@ import type { Address } from "viem";
  * a payment flow; adding another rail requires a separately verified entry.
  */
 export type SupportedStablecoin = {
-  symbol: "USDC";
+  symbol: "USDC" | "cNGN";
   name: string;
   address: Address;
   chainId: 8453;
@@ -16,11 +16,20 @@ export type SupportedStablecoin = {
 export const BASE_USDC_ADDRESS =
   "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address;
 
+export const BASE_CNGN_ADDRESS =
+  "0x46C85152bFe9f96829aA94755D9f915F9B10EF5F" as Address;
+
 export const SUPPORTED_STABLECOINS: readonly SupportedStablecoin[] = [
   {
     symbol: "USDC",
     name: "USD Coin",
     address: BASE_USDC_ADDRESS,
+    chainId: 8453,
+  },
+  {
+    symbol: "cNGN",
+    name: "Canza Nigerian Naira",
+    address: BASE_CNGN_ADDRESS,
     chainId: 8453,
   },
 ];

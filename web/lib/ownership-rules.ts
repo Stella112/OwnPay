@@ -1,5 +1,6 @@
 import { parseUnits } from "viem";
 import { SUPPORTED_TOKENS, tokenBySymbol } from "@/lib/tokens";
+import { marketAssetBySymbol, SUPPORTED_MARKET_ASSETS } from "@/lib/market-assets";
 import { BASE_USDC_ADDRESS } from "@/lib/stablecoins";
 
 export const RULE_BPS = 10_000;
@@ -48,7 +49,7 @@ export const OWNERSHIP_RULE_JSON_SCHEMA = {
     trigger: { type: "string", enum: ["incoming_usdc"] },
     minimum_payment: { type: "string" },
     allocation_percent: { type: ["string", "number"] },
-    allocations: { type: "array", minItems: 1, items: { type: "object", additionalProperties: false, properties: { asset: { type: "string", enum: SUPPORTED_TOKENS.map((token) => token.symbol) }, weight_percent: { type: ["string", "number"] } }, required: ["asset", "weight_percent"] } },
+    allocations: { type: "array", minItems: 1, items: { type: "object", additionalProperties: false, properties: { asset: { type: "string", enum: [...SUPPORTED_TOKENS.map((token) => token.symbol), ...SUPPORTED_MARKET_ASSETS.map((asset) => asset.symbol)] }, weight_percent: { type: ["string", "number"] } }, required: ["asset", "weight_percent"] } },
   max_per_payment: { type: "string" },
     max_daily: { type: "string" },
     max_monthly: { type: "string" },
@@ -82,8 +83,10 @@ export function validateOwnershipRuleCandidate(candidate: unknown, walletAddress
   const allocations = value.allocations.map((allocation) => {
     const assetSymbol = String(allocation?.asset ?? "");
     const token = tokenBySymbol(assetSymbol);
-    if (!token) throw new Error(`${assetSymbol || "That asset"} is not a verified OwnPay stock.`);
-    return { assetSymbol, assetAddress: token.address, weightBps: decimalToBps(allocation.weight_percent, `${assetSymbol} weight`) };
+    const marketAsset = marketAssetBySymbol(assetSymbol);
+    const asset = token ?? marketAsset;
+    if (!asset) throw new Error(`${assetSymbol || "That asset"} is not a verified OwnPay asset.`);
+    return { assetSymbol, assetAddress: asset.address, weightBps: decimalToBps(allocation.weight_percent, `${assetSymbol} weight`) };
   });
   if (allocations.reduce((sum, allocation) => sum + allocation.weightBps, 0) !== RULE_BPS) throw new Error("Stock allocation weights must total 100%.");
   return {

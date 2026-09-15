@@ -28,6 +28,12 @@
 .portfolio-note { margin-top: 14px; }
 .portfolio-warning { color: var(--warn-ink); }
 .portfolio-receiving { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 14px; padding: 19px; border-radius: 16px; }
+.portfolio-wallet-switcher { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 14px; padding: 16px 19px; border-radius: 16px; }
+.portfolio-wallet-switcher strong, .portfolio-wallet-switcher small { display: block; }
+.portfolio-wallet-switcher strong { margin-top: 5px; font-size: 14px; }
+.portfolio-wallet-switcher small { max-width: 620px; margin-top: 5px; color: var(--ownpay-muted); font-size: 12px; line-height: 1.45; }
+.portfolio-wallet-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.portfolio-wallet-options .btn { white-space: nowrap; }
 .portfolio-receiving strong, .portfolio-receiving small { display: block; }
 .portfolio-receiving strong { margin-top: 6px; font-size: 16px; }
 .portfolio-receiving small { margin-top: 5px; color: var(--ownpay-muted); font-size: 12px; }
@@ -40,5 +46,6 @@
   .portfolio-heading-actions { align-items: flex-start; flex-direction: column; gap: 8px; }
   .portfolio-metrics { grid-template-columns: 1fr 1fr; }
   .portfolio-columns { grid-template-columns: 1fr; }
-  .portfolio-receiving { align-items: flex-start; flex-direction: column; }
+  .portfolio-receiving, .portfolio-wallet-switcher { align-items: flex-start; flex-direction: column; }
+  .portfolio-wallet-options { justify-content: flex-start; }
 }

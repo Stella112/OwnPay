@@ -1,16 +1,25 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { parseAbiItem, type Address, type Hex } from "viem";
 import { useAccount, useChainId, usePublicClient } from "wagmi";
+import { useSetActiveWallet } from "@privy-io/wagmi";
+import { useConnectWallet, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { BASESCAN_ADDRESS, BASESCAN_TX } from "@/lib/explorer";
 import { STOCK_VESTING_ADDRESS, erc20Abi, stockVestingAbi } from "@/lib/contracts";
 import { formatDate, formatUiAmount } from "@/lib/format";
 import { getDecimals, rawToUi } from "@/lib/b20";
 import { SUPPORTED_TOKENS, tokenByAddress } from "@/lib/tokens";
-import { BASE_USDC_ADDRESS } from "@/lib/stablecoins";
+import { BASE_CNGN_ADDRESS, BASE_USDC_ADDRESS } from "@/lib/stablecoins";
+import { DPRI_ADDRESS } from "@/lib/market-assets";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
 import { WalletAddressCopy } from "@/components/WalletAddressCopy";
+import { shortAddress } from "@/lib/recipient";
+
+// Base's public RPC limits eth_getLogs to a 2,000-block range.
+const HISTORY_WINDOW = 2_000n;
+const LOG_CHUNK = 1_900n;
 
 const transferEvent = parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)");
 const memoTransferEvent = parseAbiItem("event MemoTransfer(address indexed from, address indexed to, uint256 value, bytes32 memo)");
@@ -36,6 +45,8 @@ type Holding = {
 type GrantPosition = {
   id: bigint;
   symbol: string;
+  from: Address;
+  to: Address;
   decimals: number;
   totalUi: bigint;
   vestedUi: bigint;
@@ -56,10 +67,13 @@ type ActivityItem = {
 };
 
 type PortfolioSnapshot = {
+  ethBalance: bigint;
   usdcBalance: bigint;
   usdcDecimals: number;
   usdcSent: bigint;
   usdcReceived: bigint;
+  cngnBalance: bigint;
+  dpriBalance: bigint;
   holdings: Holding[];
   grants: GrantPosition[];
   activities: ActivityItem[];
@@ -78,7 +92,9 @@ export function PortfolioSession() {
     queryKey: ["portfolio-session", address, chainId],
     queryFn: () => readPortfolio(client as ReadClient, address as Address),
     enabled,
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
+    retry: 2,
+    retryDelay: 1_000,
   });
 
   if (!address) {
@@ -114,8 +130,13 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
         <div className="portfolio-heading-actions"><a className="section-count" href={BASESCAN_ADDRESS(address)} target="_blank" rel="noopener noreferrer">View wallet ↗</a><WalletAddressCopy address={address} compact /></div>
       </div>
 
+      <PortfolioWalletSwitcher activeAddress={address} />
+
       <div className="portfolio-metrics">
+        <Metric label="Base ETH" value={`${formatUiAmount(snapshot.ethBalance, 18)} ETH`} detail="Available for gas" />
         <Metric label="Available USDC" value={`${formatUiAmount(snapshot.usdcBalance, snapshot.usdcDecimals)} USDC`} />
+        <Metric label="Available cNGN" value={`${formatUiAmount(snapshot.cngnBalance, 6)} cNGN`} detail="GetEquity settlement token" />
+        <Metric label="DPRI owned" value={`${formatUiAmount(snapshot.dpriBalance, 18, { maxFractionDigits: 6, minFractionDigits: 4 })} DPRI`} detail="Verified from Base" />
         <Metric label="Owned stocks" value={ownedSummary || "0 shares"} />
         <Metric label="Vested to you" value={vestedSummary || "0 shares"} />
         <Metric label="Total spent" value={`${formatUiAmount(snapshot.usdcSent, snapshot.usdcDecimals)} USDC`} detail="Outgoing USDC transfers" />
@@ -125,7 +146,7 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
 
       <div className="portfolio-columns">
         <div className="panel">
-          <div className="portfolio-panel-heading"><div><p className="eyebrow">Holdings</p><h3>Stocks you own</h3></div><span className="section-count">Live B20 reads</span></div>
+          <div className="portfolio-panel-heading"><div><p className="eyebrow">Holdings</p><h3>Stocks you own</h3></div><span className="section-count">Live Base reads</span></div>
           <div className="portfolio-list">
             {snapshot.holdings.map((holding) => (
               <div className="portfolio-row" key={holding.symbol}>
@@ -145,7 +166,7 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
             {snapshot.grants.filter((grant) => grant.incoming).slice(0, 8).map((grant) => (
               <div className="portfolio-row portfolio-grant-row" key={grant.id.toString()}>
                 <span className="portfolio-token-mark">{grant.symbol.slice(0, 1)}</span>
-                <span><strong>{grant.symbol} · Grant #{grant.id.toString()}</strong><small>{grant.revoked ? "Revoked" : grant.claimableUi > 0n ? "Claimable now" : "Vesting"}</small></span>
+                <span><strong>{grant.symbol} · Grant #{grant.id.toString()}</strong><small>{grant.revoked ? "Revoked" : grant.claimableUi > 0n ? "Claimable now" : "Vesting"} · From {shortAddress(grant.from)} · <a href={`/claim/${grant.id.toString()}`}>Claim link ↗</a></small></span>
                 <span className="portfolio-row-value">{formatUiAmount(grant.vestedUi, grant.decimals, { maxFractionDigits: 6, minFractionDigits: 4 })}<small>of {formatUiAmount(grant.totalUi, grant.decimals, { maxFractionDigits: 6, minFractionDigits: 4 })}</small></span>
               </div>
             ))}
@@ -156,12 +177,21 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
 
       <div className="portfolio-columns">
         <div className="panel">
+          <div className="portfolio-panel-heading"><div><p className="eyebrow">Global markets</p><h3>cNGN and DPRI</h3></div><a className="section-count" href="https://www.getequity.io/onchain-swap/?slug=6aa7bb4317b2b000025c539b&amp;network=base" target="_blank" rel="noopener noreferrer">Open market ↗</a></div>
+          <div className="portfolio-list">
+            <div className="portfolio-row"><span className="portfolio-token-mark">₦</span><span><strong>cNGN</strong><small>Canza Nigerian Naira · Base settlement asset</small></span><span className="portfolio-row-value">{formatUiAmount(snapshot.cngnBalance, 6)}<small>cNGN</small></span></div>
+            <div className="portfolio-row"><span className="portfolio-token-mark">D</span><span><strong>DPRI</strong><small>Dangote Petroleum Refinery IPO · GetEquity</small></span><span className="portfolio-row-value">{formatUiAmount(snapshot.dpriBalance, 18, { maxFractionDigits: 6, minFractionDigits: 4 })}<small>DPRI</small></span></div>
+          </div>
+          <p className="portfolio-note">DPRI is a GetEquity market asset settled with cNGN; it is not a Coinbase B20 stock.</p>
+        </div>
+
+        <div className="panel">
           <div className="portfolio-panel-heading"><div><p className="eyebrow">Ownership activity</p><h3>Grant timeline</h3></div><span className="section-count">{snapshot.grants.length} total</span></div>
           <div className="portfolio-list">
             {snapshot.grants.slice(0, 8).map((grant) => (
               <div className="portfolio-row" key={`timeline-${grant.id.toString()}`}>
                 <span className={`portfolio-status ${grant.incoming ? "portfolio-status-in" : "portfolio-status-out"}`}>{grant.incoming ? "IN" : "OUT"}</span>
-                <span><strong>{grant.incoming ? "Received" : "Sent"} {grant.symbol}</strong><small>{grant.incoming ? "Grant to your wallet" : "Grant created by you"}</small></span>
+                <span><strong>{grant.incoming ? "Received" : "Sent"} {grant.symbol}</strong><small>{grant.incoming ? `From ${shortAddress(grant.from)}` : `To ${shortAddress(grant.to)}`} · <a href={`/claim/${grant.id.toString()}`}>Claim link ↗</a></small></span>
                 <span className="portfolio-row-value">{formatUiAmount(grant.totalUi, grant.decimals, { maxFractionDigits: 6, minFractionDigits: 4 })}<small>{formatDate(grant.start)}</small></span>
               </div>
             ))}
@@ -190,6 +220,63 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
   );
 }
 
+function PortfolioWalletSwitcher(props: { activeAddress: Address }) {
+  if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) return null;
+  return <PrivyPortfolioWalletSwitcher {...props} />;
+}
+
+function PrivyPortfolioWalletSwitcher({ activeAddress }: { activeAddress: Address }) {
+  const { authenticated } = usePrivy();
+  const { wallets, ready } = useWallets();
+  const { setActiveWallet } = useSetActiveWallet();
+  const [pendingAddress, setPendingAddress] = useState<string | null>(null);
+
+  const ethereumWallets = wallets.filter((wallet) => wallet.type === "ethereum");
+
+  useEffect(() => {
+    if (!pendingAddress) return;
+    const wallet = ethereumWallets.find((candidate) => candidate.address.toLowerCase() === pendingAddress.toLowerCase());
+    if (!wallet) return;
+    void setActiveWallet(wallet).finally(() => setPendingAddress(null));
+  }, [ethereumWallets, pendingAddress, setActiveWallet]);
+
+  const { connectWallet } = useConnectWallet({
+    onSuccess: ({ wallet }) => setPendingAddress(wallet.address),
+  });
+
+  if (!authenticated || !ready || ethereumWallets.length === 0) return null;
+
+  async function selectWallet(wallet: ConnectedWallet) {
+    if (!wallet.linked) await wallet.loginOrLink();
+    await setActiveWallet(wallet);
+  }
+
+  return (
+    <div className="portfolio-wallet-switcher panel-warm">
+      <div>
+        <p className="eyebrow">Portfolio wallet</p>
+        <strong>{ethereumWallets.length > 1 ? "Choose which wallet to view" : "This is the wallet currently being viewed"}</strong>
+        <small>Claims and balances belong to the selected Base address. Your email wallet and connected wallets can be different.</small>
+      </div>
+      <div className="portfolio-wallet-options">
+        {ethereumWallets.map((wallet) => (
+          <button
+            className={`btn ${wallet.address.toLowerCase() === activeAddress.toLowerCase() ? "btn-primary" : "btn-ghost"}`}
+            key={wallet.address}
+            type="button"
+            onClick={() => { void selectWallet(wallet); }}
+          >
+            {wallet.meta.name} · {shortAddress(wallet.address)}
+          </button>
+        ))}
+        <button className="btn btn-ghost" type="button" onClick={() => connectWallet()}>
+          Connect another wallet
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Metric({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return <div className="portfolio-metric"><span>{label}</span><strong>{value}</strong><small>{detail ?? "Verified from Base"}</small></div>;
 }
@@ -209,18 +296,29 @@ function summarizeShares(values: Array<{ symbol: string; decimals: number; ui: b
 
 async function readPortfolio(client: ReadClient, address: Address): Promise<PortfolioSnapshot> {
   const latestBlock = await client.getBlockNumber();
-  const fromBlock = latestBlock > 2_000_000n ? latestBlock - 2_000_000n : 0n;
+  const fromBlock = latestBlock > HISTORY_WINDOW ? latestBlock - HISTORY_WINDOW : 0n;
   const historyResults = await Promise.all([
-    safeLogs(client, { address: BASE_USDC_ADDRESS, event: transferEvent, args: { from: address }, fromBlock }),
-    safeLogs(client, { address: BASE_USDC_ADDRESS, event: transferEvent, args: { to: address }, fromBlock }),
-    STOCK_VESTING_ADDRESS ? safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: grantCreatedEvent, fromBlock }) : Promise.resolve({ logs: [], ok: true }),
-    STOCK_VESTING_ADDRESS ? safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: releasedEvent, args: { to: address }, fromBlock }) : Promise.resolve({ logs: [], ok: true }),
-    STOCK_VESTING_ADDRESS ? safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: revokedEvent, args: { from: address }, fromBlock }) : Promise.resolve({ logs: [], ok: true }),
+    safeLogs(client, { address: BASE_USDC_ADDRESS, event: transferEvent, args: { from: address }, fromBlock, toBlock: latestBlock }),
+    safeLogs(client, { address: BASE_USDC_ADDRESS, event: transferEvent, args: { to: address }, fromBlock, toBlock: latestBlock }),
+    safeLogs(client, { address: BASE_CNGN_ADDRESS, event: transferEvent, args: { from: address }, fromBlock, toBlock: latestBlock }),
+    safeLogs(client, { address: BASE_CNGN_ADDRESS, event: transferEvent, args: { to: address }, fromBlock, toBlock: latestBlock }),
+    safeLogs(client, { address: DPRI_ADDRESS, event: transferEvent, args: { from: address }, fromBlock, toBlock: latestBlock }),
+    safeLogs(client, { address: DPRI_ADDRESS, event: transferEvent, args: { to: address }, fromBlock, toBlock: latestBlock }),
+    STOCK_VESTING_ADDRESS ? safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: grantCreatedEvent, fromBlock, toBlock: latestBlock }) : Promise.resolve({ logs: [], ok: true }),
+    STOCK_VESTING_ADDRESS ? safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: releasedEvent, args: { to: address }, fromBlock, toBlock: latestBlock }) : Promise.resolve({ logs: [], ok: true }),
+    STOCK_VESTING_ADDRESS ? safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: revokedEvent, args: { from: address }, fromBlock, toBlock: latestBlock }) : Promise.resolve({ logs: [], ok: true }),
   ]);
-  const [usdcSentLogs, usdcReceivedLogs, grantLogs, releasedLogs, revokedLogs] = historyResults;
+  const [usdcSentLogs, usdcReceivedLogs, cngnSentLogs, cngnReceivedLogs, dpriSentLogs, dpriReceivedLogs, grantLogs, releasedLogs, revokedLogs] = historyResults;
 
-  const usdcDecimals = Number(await client.readContract({ address: BASE_USDC_ADDRESS, abi: erc20Abi, functionName: "decimals" }));
-  const usdcBalance = (await client.readContract({ address: BASE_USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address] })) as bigint;
+  const [ethBalance, usdcDecimals] = await Promise.all([
+    client.getBalance({ address }),
+    client.readContract({ address: BASE_USDC_ADDRESS, abi: erc20Abi, functionName: "decimals" }).then(Number),
+  ]);
+  const [usdcBalance, cngnBalance, dpriBalance] = await Promise.all([
+    client.readContract({ address: BASE_USDC_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address] }) as Promise<bigint>,
+    client.readContract({ address: BASE_CNGN_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address] }) as Promise<bigint>,
+    client.readContract({ address: DPRI_ADDRESS, abi: erc20Abi, functionName: "balanceOf", args: [address] }) as Promise<bigint>,
+  ]);
   const usdcSent = sumLogs(usdcSentLogs.logs, "value");
   const usdcReceived = sumLogs(usdcReceivedLogs.logs, "value");
 
@@ -244,8 +342,8 @@ async function readPortfolio(client: ReadClient, address: Address): Promise<Port
   const grants = await Promise.all(allGrantLogs.slice(-30).map(async (log) => readGrant(client, address, log)));
   const validGrants = grants.filter((grant): grant is GrantPosition => grant !== null);
 
-  const tipResults = await Promise.all(SUPPORTED_TOKENS.map((token) => safeLogs(client, { address: token.address, event: memoTransferEvent, args: { from: address }, fromBlock })));
-  const vestingTips = STOCK_VESTING_ADDRESS ? await safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: vestingMemoEvent, args: { from: address }, fromBlock }) : { logs: [], ok: true };
+  const tipResults = await Promise.all(SUPPORTED_TOKENS.map((token) => safeLogs(client, { address: token.address, event: memoTransferEvent, args: { from: address }, fromBlock, toBlock: latestBlock })));
+  const vestingTips = STOCK_VESTING_ADDRESS ? await safeLogs(client, { address: STOCK_VESTING_ADDRESS, event: vestingMemoEvent, args: { from: address }, fromBlock, toBlock: latestBlock }) : { logs: [], ok: true };
   const tips = (await Promise.all(SUPPORTED_TOKENS.map(async (token, index) => {
     const nativeRaw = sumLogs(tipResults[index].logs, "value");
     const fallbackRaw = vestingTips.logs.filter((log) => (log.args?.token as Address | undefined)?.toLowerCase() === token.address.toLowerCase()).reduce((total, log) => total + ((log.args?.rawAmount as bigint | undefined) ?? 0n), 0n);
@@ -253,12 +351,15 @@ async function readPortfolio(client: ReadClient, address: Address): Promise<Port
     return { symbol: token.symbol, decimals: await getDecimals(client, token.address), ui: await rawToUi(client, token.address, nativeRaw + fallbackRaw) };
   }))).filter((tip): tip is { symbol: string; decimals: number; ui: bigint } => tip !== null);
 
-  const activities = await buildActivities(client, address, usdcSentLogs.logs, usdcReceivedLogs.logs, grantLogs.logs, releasedLogs.logs, revokedLogs.logs, tipResults.flatMap((result) => result.logs));
+  const activities = await buildActivities(client, address, usdcSentLogs.logs, usdcReceivedLogs.logs, cngnSentLogs.logs, cngnReceivedLogs.logs, dpriSentLogs.logs, dpriReceivedLogs.logs, grantLogs.logs, releasedLogs.logs, revokedLogs.logs, tipResults.flatMap((result) => result.logs));
   return {
+    ethBalance,
     usdcBalance,
     usdcDecimals,
     usdcSent,
     usdcReceived,
+    cngnBalance,
+    dpriBalance,
     holdings,
     grants: validGrants.sort((a, b) => Number(b.start - a.start)),
     activities,
@@ -285,6 +386,8 @@ async function readGrant(client: ReadClient, address: Address, log: PortfolioLog
     return {
       id,
       symbol: tokenByAddress(token)?.symbol ?? "B20",
+      from,
+      to,
       decimals,
       totalUi: await rawToUi(client, token, totalRaw),
       vestedUi: await rawToUi(client, token, vestedRaw),
@@ -306,6 +409,10 @@ async function buildActivities(
   address: Address,
   sent: PortfolioLog[],
   received: PortfolioLog[],
+  cngnSent: PortfolioLog[],
+  cngnReceived: PortfolioLog[],
+  dpriSent: PortfolioLog[],
+  dpriReceived: PortfolioLog[],
   grants: PortfolioLog[],
   released: PortfolioLog[],
   revoked: PortfolioLog[],
@@ -315,6 +422,10 @@ async function buildActivities(
   const usdcDecimals = Number(await client.readContract({ address: BASE_USDC_ADDRESS, abi: erc20Abi, functionName: "decimals" }));
   for (const log of sent) if (log.transactionHash && log.blockNumber !== undefined) items.push({ hash: log.transactionHash, blockNumber: log.blockNumber, label: "USDC sent", detail: `${formatUiAmount((log.args?.value as bigint) ?? 0n, usdcDecimals)} USDC` });
   for (const log of received) if (log.transactionHash && log.blockNumber !== undefined && (log.args?.from as Address)?.toLowerCase() !== address.toLowerCase()) items.push({ hash: log.transactionHash, blockNumber: log.blockNumber, label: "USDC received", detail: `+${formatUiAmount((log.args?.value as bigint) ?? 0n, usdcDecimals)} USDC` });
+  for (const log of cngnSent) if (log.transactionHash && log.blockNumber !== undefined) items.push({ hash: log.transactionHash, blockNumber: log.blockNumber, label: "cNGN sent", detail: `${formatUiAmount((log.args?.value as bigint) ?? 0n, 6)} cNGN` });
+  for (const log of cngnReceived) if (log.transactionHash && log.blockNumber !== undefined && (log.args?.from as Address)?.toLowerCase() !== address.toLowerCase()) items.push({ hash: log.transactionHash, blockNumber: log.blockNumber, label: "cNGN received", detail: `+${formatUiAmount((log.args?.value as bigint) ?? 0n, 6)} cNGN` });
+  for (const log of dpriSent) if (log.transactionHash && log.blockNumber !== undefined) items.push({ hash: log.transactionHash, blockNumber: log.blockNumber, label: "DPRI sent", detail: `${formatUiAmount((log.args?.value as bigint) ?? 0n, 18, { maxFractionDigits: 6, minFractionDigits: 4 })} DPRI` });
+  for (const log of dpriReceived) if (log.transactionHash && log.blockNumber !== undefined && (log.args?.from as Address)?.toLowerCase() !== address.toLowerCase()) items.push({ hash: log.transactionHash, blockNumber: log.blockNumber, label: "DPRI received", detail: `+${formatUiAmount((log.args?.value as bigint) ?? 0n, 18, { maxFractionDigits: 6, minFractionDigits: 4 })} DPRI` });
   for (const log of grants) if (log.transactionHash && log.blockNumber !== undefined) {
     const token = tokenByAddress(log.args?.token as string);
     const decimals = token ? await getDecimals(client, token.address) : 8;
@@ -333,12 +444,21 @@ async function buildActivities(
 }
 
 async function safeLogs(client: ReadClient, args: Record<string, unknown>): Promise<{ logs: PortfolioLog[]; ok: boolean }> {
-  try {
-    const logs = await client.getLogs(args as never) as unknown as PortfolioLog[];
-    return { logs, ok: true };
-  } catch {
-    return { logs: [], ok: false };
+  const fromBlock = args.fromBlock as bigint | undefined;
+  const toBlock = args.toBlock as bigint | undefined;
+  if (fromBlock === undefined || toBlock === undefined) return { logs: [], ok: false };
+
+  const logs: PortfolioLog[] = [];
+  for (let start = fromBlock; start <= toBlock; start += LOG_CHUNK) {
+    const end = start + LOG_CHUNK - 1n > toBlock ? toBlock : start + LOG_CHUNK - 1n;
+    try {
+      const chunk = await client.getLogs({ ...args, fromBlock: start, toBlock: end } as never) as unknown as PortfolioLog[];
+      logs.push(...chunk);
+    } catch {
+      return { logs, ok: false };
+    }
   }
+  return { logs, ok: true };
 }
 
 function sumLogs(logs: PortfolioLog[], field: string): bigint {
