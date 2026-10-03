@@ -1,28 +1,28 @@
 {
-  "checkedAt": "2026-10-03T17:37:31.570Z",
+  "checkedAt": "2026-10-03T22:51:04.163Z",
   "chainId": 46630,
   "router": "0x8173e2f3D59A633eEf99Dfd926f5Bc0a1D3922a9",
-  "signer": "0x04211C390e7529089f65F7AB7bCb93734E259f5E",
-  "kernelAccount": "0x2EAB3d4BF543b06a0227d3BC3903EEAF7be247d6",
+  "signer": "0x0692625Df556fB496CCF3101cDD7D1F4189a6955",
+  "kernelAccount": "0x545e4d30979fc61Bb2920bd7508F75441Fd61405",
   "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
   "before": {
     "signerEth": "0",
     "accountEth": "0"
   },
-  "userOpHash": "0x33a7c6b947e2a8a7cb3e5ecea9ff037c3843eb19a9e3f1b0abcbc650ac634361",
+  "userOpHash": "0x96f409d6b05cf619c58d0ea762ecc982a73fb1d0bac3b9b37b73a3cdb8ac5fee",
   "success": true,
-  "txHash": "0x75c1f4c23dbf9af89c6a7d1a48633680742616951ba902924b9f9c3b24bc3ceb",
-  "block": "128272240",
+  "txHash": "0x936dfd97872e5495bb6dbe46cfbc5caed7ac79e06898d6a0cfcee3fd3cb9d519",
+  "block": "128366046",
   "bundler": "0x21196F1DAbA498D64EB31423D392EF3ccE546AD7",
-  "transactionGasUsed": "626133",
+  "transactionGasUsed": "629020",
   "sponsorshipMechanism": "zero-fee user operation; bundler paid transaction gas",
   "paymaster": null,
   "actualGasCostWei": "0",
-  "receiveAccount": "0xd02Cc25b172D278B9Db86882A213C27761AfBBe4",
+  "receiveAccount": "0x5f7f7eBAb7928b03DB1C79e78803e1E61d67Eba3",
   "after": {
     "signerEth": "0",
     "accountEth": "0"
   },
-  "explorerTx": "https://explorer.testnet.chain.robinhood.com/tx/0x75c1f4c23dbf9af89c6a7d1a48633680742616951ba902924b9f9c3b24bc3ceb",
+  "explorerTx": "https://explorer.testnet.chain.robinhood.com/tx/0x936dfd97872e5495bb6dbe46cfbc5caed7ac79e06898d6a0cfcee3fd3cb9d519",
   "result": "VERIFIED: sponsored user operation (zero-fee user operation; bundler paid transaction gas) succeeded; never-funded account paid 0 ETH; OwnRules receive account created and 70/10/20 rule saved in one batch."
 }
