@@ -1,0 +1,97 @@
+{
+  "chainId": 46630,
+  "stockVesting": "0x34f750Bd9B07a5C12447e4ebbEA9dA5Be032a917",
+  "grantor": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "recipient": "0x7D01626B49cAf3E842198EbAa2cA9ea36Ba93F06",
+  "steps": [
+    {
+      "label": "approve TSLA",
+      "tx": "0xbe01549f0acb8c1d48a401048d829e4a62e598fdb50d97d6f5fee6630d2d0af4",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xbe01549f0acb8c1d48a401048d829e4a62e598fdb50d97d6f5fee6630d2d0af4"
+    },
+    {
+      "label": "approve AMD",
+      "tx": "0xca8a9cc72cdce30e784bd55f56e089345ba38cc19e2dc48df28f0f7c7b72a7bd",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xca8a9cc72cdce30e784bd55f56e089345ba38cc19e2dc48df28f0f7c7b72a7bd"
+    },
+    {
+      "label": "approve AMZN",
+      "tx": "0xb12731c891dbb2042d7ee24d2155ae4c9205660b29ec97323fcfcfa052c9d497",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xb12731c891dbb2042d7ee24d2155ae4c9205660b29ec97323fcfcfa052c9d497"
+    },
+    {
+      "label": "approve NFLX",
+      "tx": "0xd8f45d3351d8d6b107aba7b79670379cbb5d77ff8afcdf9f1fa3e01ef471b13d",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xd8f45d3351d8d6b107aba7b79670379cbb5d77ff8afcdf9f1fa3e01ef471b13d"
+    },
+    {
+      "label": "Pay TSLA (createGrant, revocable)",
+      "tx": "0x856091fe31afe8825e7bce778f339a8885bb737af2bcd75608673530071c2fef",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x856091fe31afe8825e7bce778f339a8885bb737af2bcd75608673530071c2fef"
+    },
+    {
+      "label": "Pay AMD (createGrant, revocable)",
+      "tx": "0xca32823898fe9d426e7a7d28f45eabec00fb0bb03217ddf7cc08ccaae6d00e62",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xca32823898fe9d426e7a7d28f45eabec00fb0bb03217ddf7cc08ccaae6d00e62"
+    },
+    {
+      "label": "Gift AMZN (createGrant, irrevocable)",
+      "tx": "0x801a379c5e57117fd7a36c9c0844736a121b978049782fb8ae0848e6ebffb73b",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x801a379c5e57117fd7a36c9c0844736a121b978049782fb8ae0848e6ebffb73b"
+    },
+    {
+      "label": "approve NFLX (tip)",
+      "tx": "0x9fd502153065bc9f94c67171686d297b056a68ddff509ee0d4ecf267396f5938",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x9fd502153065bc9f94c67171686d297b056a68ddff509ee0d4ecf267396f5938"
+    },
+    {
+      "label": "Tip NFLX (tipWithMemo)",
+      "tx": "0xf15aa6fd4b92bace2d3a515bf9fef3f53841c4ebfd61d612502987924370598a",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xf15aa6fd4b92bace2d3a515bf9fef3f53841c4ebfd61d612502987924370598a"
+    },
+    {
+      "label": "Claim Pay TSLA (release)",
+      "tx": "0x114f3dd818dbb072f8cd5aee01182812f538c50194d1698408a2795a4d20d032",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x114f3dd818dbb072f8cd5aee01182812f538c50194d1698408a2795a4d20d032"
+    },
+    {
+      "label": "Revoke AMD (unvested returns to grantor)",
+      "tx": "0xb488cb17b00f5a5a4a6c4fc4ff7534e0d0ec0477c182fa20aa406902b47c2a7b",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xb488cb17b00f5a5a4a6c4fc4ff7534e0d0ec0477c182fa20aa406902b47c2a7b"
+    },
+    {
+      "label": "Claim revoked grant's vested AMD (release)",
+      "tx": "0x8a57c3df33834b71045b84d72817d57ad03126540507830c6318a07babef9070",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x8a57c3df33834b71045b84d72817d57ad03126540507830c6318a07babef9070"
+    },
+    {
+      "label": "Claim Gift AMZN (release)",
+      "tx": "0xc878db401ecf3971138045714ba9386dcca60ec8d1074568f57bce921b53a867",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xc878db401ecf3971138045714ba9386dcca60ec8d1074568f57bce921b53a867"
+    }
+  ],
+  "checks": {
+    "payLockedBeforeCliff": true,
+    "giftLockedBeforeUnlock": true,
+    "giftRevokeRejected": true,
+    "tipMemoEvent": true,
+    "tipDelivered": true,
+    "payFullyClaimed": true,
+    "payDoubleReleaseRejected": true,
+    "revokeSplitsCorrectly": true,
+    "secondRevokeRejected": true,
+    "giftFullyClaimed": true
+  },
+  "grants": {
+    "pay": "3",
+    "revocable": "4",
+    "gift": "5"
+  },
+  "revoke": {
+    "refundedToGrantor": "0.035",
+    "vestedKeptByRecipient": "0.065",
+    "block": 128370305
+  },
+  "allChecksPassed": true,
+  "checkedAt": "2026-10-03T23:05:21.984Z"
+}

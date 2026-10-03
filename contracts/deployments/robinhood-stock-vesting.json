@@ -1,0 +1,16 @@
+{
+  "chainId": 46630,
+  "stockVesting": "0x34f750Bd9B07a5C12447e4ebbEA9dA5Be032a917",
+  "deployTx": "0xeeafb32b87c270385b25c35c63b74561837febee7dabd22de3995a9f178febdd",
+  "deploymentBlock": 128368312,
+  "deployer": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "deployedAt": "2026-10-03T22:58:34.595Z",
+  "stockTokens": {
+    "TSLA": "0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E",
+    "AMD": "0x71178BAc73cBeb415514eB542a8995b82669778d",
+    "AMZN": "0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02",
+    "NFLX": "0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93",
+    "PLTR": "0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0"
+  },
+  "disclaimer": "Faucet-issued Robinhood Chain testnet stock tokens; no monetary value; not registry-listed."
+}
