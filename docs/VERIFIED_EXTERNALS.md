@@ -17,6 +17,30 @@ used as substitutes. Arbitrum deployment is a post-submission roadmap item.
 | Compliance | No external screening/KYC provider configured | Explicit local test-policy administrator with expiry and block flag. Fails closed on unknown/expired payer/recipient for router payments. NOT regulatory certification, KYC or sanctions screening. Direct account deposits have unknown payer provenance; receiver eligibility only applies at allocation. |
 | Metadata | Browser Web Crypto AES-GCM | Encrypted note ciphertext/key stored locally; only randomized ciphertext commitment goes onchain. Addresses/amounts are PUBLIC. Keys are accessible to same-origin JS; not confidential against XSS/device compromise. No privacy-protocol claims. |
 
+## Faucet-issued testnet stock tokens (verified 2026-10-03)
+
+The official registry still lists no chain-46630 deployments, but the following
+tokens were minted (from `0x0`) to the deployer `0xE66581C8…8e19` by the
+explorer-verified **`Faucet`** contract `0x8762F93772c663c6a88Ba50900bd5381df2717Be`
+(method `sendTokensAndEther`, tx
+`0x96fa44b8bed5d401aed9c85d114d53b64ad5cf82494735e270535752b949a812`, status ok).
+Each was read directly over RPC on chain 46630 (not from the explorer index):
+
+| Symbol | Address | Code | Decimals | `uiMultiplier()` | Paused |
+| --- | --- | --- | --- | --- | --- |
+| TSLA | `0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E` | 283 B (proxy) | 18 | 1e18 (1.0×) | false |
+| AMD | `0x71178BAc73cBeb415514eB542a8995b82669778d` | 283 B (proxy) | 18 | 1e18 | false |
+| AMZN | `0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02` | 283 B (proxy) | 18 | 1e18 | false |
+| NFLX | `0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93` | 283 B (proxy) | 18 | 1e18 | false |
+| PLTR | `0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0` | 283 B (proxy) | 18 | 1e18 | false |
+
+How to describe them: **Robinhood Chain testnet stock tokens from the official
+faucet — no monetary value.** Do not call them registry-listed deployments.
+
+Interface note: these expose `uiMultiplier()` (ERC-8056-style), **not** the Base
+B20 `multiplier()` / `toScaledBalance()` surface. Base B20 conversion code must not
+be reused unchanged; display amounts must apply `uiMultiplier` explicitly.
+
 ## Explicit demo components
 
 `DemoOwnershipAdapter` creates `DEMO-OWN` units at a fixed demo conversion of one
