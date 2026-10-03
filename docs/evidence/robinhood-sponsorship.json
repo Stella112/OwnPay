@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-03T17:37:31.570Z",
+  "chainId": 46630,
+  "router": "0x8173e2f3D59A633eEf99Dfd926f5Bc0a1D3922a9",
+  "signer": "0x04211C390e7529089f65F7AB7bCb93734E259f5E",
+  "kernelAccount": "0x2EAB3d4BF543b06a0227d3BC3903EEAF7be247d6",
+  "entryPoint": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+  "before": {
+    "signerEth": "0",
+    "accountEth": "0"
+  },
+  "userOpHash": "0x33a7c6b947e2a8a7cb3e5ecea9ff037c3843eb19a9e3f1b0abcbc650ac634361",
+  "success": true,
+  "txHash": "0x75c1f4c23dbf9af89c6a7d1a48633680742616951ba902924b9f9c3b24bc3ceb",
+  "block": "128272240",
+  "bundler": "0x21196F1DAbA498D64EB31423D392EF3ccE546AD7",
+  "transactionGasUsed": "626133",
+  "sponsorshipMechanism": "zero-fee user operation; bundler paid transaction gas",
+  "paymaster": null,
+  "actualGasCostWei": "0",
+  "receiveAccount": "0xd02Cc25b172D278B9Db86882A213C27761AfBBe4",
+  "after": {
+    "signerEth": "0",
+    "accountEth": "0"
+  },
+  "explorerTx": "https://explorer.testnet.chain.robinhood.com/tx/0x75c1f4c23dbf9af89c6a7d1a48633680742616951ba902924b9f9c3b24bc3ceb",
+  "result": "VERIFIED: sponsored user operation (zero-fee user operation; bundler paid transaction gas) succeeded; never-funded account paid 0 ETH; OwnRules receive account created and 70/10/20 rule saved in one batch."
+}
