@@ -19,6 +19,25 @@ can *program* into compensation, gifts, and rewards:
 
 Live app: [ownpay.online](https://ownpay.online)
 
+## Robinhood Chain Testnet build
+
+The separate `/robinhood` workbench targets Robinhood Chain Testnet (46630),
+without replacing the Base product. OwnRules executes USDG splits into spendable
+cash, savings escrow and an ownership reserve, with optional no-value DEMO-OWN
+assets, linear vesting, payment links and revocable agent permissions.
+
+**Live wallet-paid testnet demo:** contracts are deployed, the frontend is connected,
+and real transactions verify the 70/10/20 split, withdrawals, delegated income
+allocation, funded vesting and claiming. A separate one-shot worker also processed
+a test income split. See [demo evidence](docs/evidence/robinhood-demo.json) and
+[worker evidence](docs/evidence/robinhood-worker.json).
+**Not yet submission-ready:** ZeroDev sponsorship still requires a configured
+project, gas policy and successful user operation; browser email onboarding and a
+persistent automation worker still need end-to-end verification.
+DEMO-OWN is not a real Stock Token. Faucet test stock balances exist, but the
+checked stock-to-USDG route fails with stale oracle prices. See [build status and reproducible steps](docs/ROBINHOOD_BUILD.md)
+and [verified external dependencies](docs/VERIFIED_EXTERNALS.md).
+
 ## Repository layout
 
 ```

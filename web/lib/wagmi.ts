@@ -1,6 +1,9 @@
 import { createConfig, http, cookieStorage, createStorage } from "wagmi";
 import { base, hardhat } from "wagmi/chains";
-import { injected, coinbaseWallet, mock } from "wagmi/connectors";
+import { injected } from "wagmi/connectors/injected";
+import { coinbaseWallet } from "wagmi/connectors/coinbaseWallet";
+import { mock } from "wagmi/connectors/mock";
+import { robinhoodTestnet } from './robinhood';
 
 /**
  * wagmi config — Base mainnet (chainId 8453) in production.
@@ -33,9 +36,9 @@ export const wagmiConfig = LOCAL
       storage: createStorage({ storage: cookieStorage }),
     })
   : createConfig({
-      chains: [base],
+      chains: [base, robinhoodTestnet],
       connectors: [injected(), coinbaseWallet({ appName: "OwnPay" })],
-      transports: { [base.id]: http(rpcUrl) },
+      transports: { [base.id]: http(rpcUrl), [robinhoodTestnet.id]: http(robinhoodTestnet.rpcUrls.default.http[0]) },
       ssr: true,
       storage: createStorage({ storage: cookieStorage }),
     });

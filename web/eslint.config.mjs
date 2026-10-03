@@ -9,6 +9,8 @@ const eslintConfig = defineConfig([
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
+    // Side-by-side release builds (e.g. .next-robinhood-YYYYMMDD) are build output too.
+    ".next-*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

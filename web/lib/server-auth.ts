@@ -1,4 +1,4 @@
-import { verifyIdentityToken, type User } from "@privy-io/node";
+import { PrivyClient, verifyIdentityToken, type User } from "@privy-io/node";
 
 export class AuthConfigurationError extends Error {}
 export class AuthenticationError extends Error {}
@@ -11,7 +11,7 @@ function verificationKey() {
   return process.env.PRIVY_VERIFICATION_KEY;
 }
 
-export async function authenticatePrivyRequest(request: Request): Promise<User> {
+export async function authenticatePrivyRequest(request: Request, refreshLinkedAccounts = false): Promise<User> {
   const configuredAppId = appId();
   const configuredVerificationKey = verificationKey();
   if (!configuredAppId || !configuredVerificationKey) {
@@ -19,8 +19,9 @@ export async function authenticatePrivyRequest(request: Request): Promise<User> 
   }
   const identityToken = request.headers.get("x-privy-id-token");
   if (!identityToken) throw new AuthenticationError("Sign in is required.");
+  let user: User;
   try {
-    return await verifyIdentityToken({
+    user = await verifyIdentityToken({
       identity_token: identityToken,
       app_id: configuredAppId,
       verification_key: configuredVerificationKey,
@@ -28,6 +29,17 @@ export async function authenticatePrivyRequest(request: Request): Promise<User> 
   } catch {
     throw new AuthenticationError("Your sign-in session is no longer valid. Sign in again and retry.");
   }
+  // A valid identity JWT can predate a newly-created or linked wallet.
+  // Never accept client-provided ownership claims; refresh by verified subject.
+  if (refreshLinkedAccounts) {
+    if (!process.env.PRIVY_APP_SECRET) throw new AuthConfigurationError("Wallet ownership verification is not configured.");
+    try {
+      const fresh = await new PrivyClient({ appId: configuredAppId, appSecret: process.env.PRIVY_APP_SECRET }).users()._get(user.id);
+      if (fresh.id !== user.id) throw new Error("Unexpected user subject.");
+      return fresh;
+    } catch { throw new AuthConfigurationError("Wallet ownership verification is temporarily unavailable. Retry in a moment."); }
+  }
+  return user;
 }
 
 function normalized(value: string) {
@@ -51,7 +63,7 @@ export function assertUserOwnsWallet(user: User, walletAddress: string) {
 /**
  * Confirm the requested wallet is an OwnPay embedded wallet. The signer grant
  * itself is completed by Privy's authenticated `addSigners` call in the
- * browser; the server-side Privy swap request remains the final enforcement
+ * browser; the server-side Privy transaction request remains the final enforcement
  * point because Privy rejects requests from wallets without that signer.
  */
 export function isPrivyEmbeddedWalletDelegated(user: User, walletAddress: string) {

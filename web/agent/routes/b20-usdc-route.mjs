@@ -99,14 +99,14 @@ export function validateRouteRequest(request) {
 function unavailableReason() {
   if (process.env.OWNPAY_B20_ROUTE_ENABLED !== "true") return "ROUTE_DISABLED";
   if (String(process.env.OWNPAY_B20_VENUE || "").toLowerCase() !== "privy-uniswap") return "UNVERIFIED_VENUE";
-  if (!process.env.PRIVY_APP_ID || !process.env.PRIVY_APP_SECRET) return "PRIVY_SERVER_NOT_CONFIGURED";
+  if (!(process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID) || !process.env.PRIVY_APP_SECRET) return "PRIVY_SERVER_NOT_CONFIGURED";
   if (!process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY) return "SERVER_SIGNER_NOT_CONFIGURED";
   return null;
 }
 
 function createPrivyClient() {
   return new PrivyClient({
-    appId: process.env.PRIVY_APP_ID,
+    appId: process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID,
     appSecret: process.env.PRIVY_APP_SECRET,
     requestExpiry: { defaultMs: 60_000 },
   });
@@ -122,7 +122,7 @@ function swapParams(assetAddress, amountRaw, slippageBps) {
     source: { asset_address: BASE_USDC_ADDRESS, caip2: BASE_CAIP2 },
     destination: { asset_address: assetAddress, caip2: BASE_CAIP2 },
     amount_type: "exact_input",
-    ...(slippageBps > 0 ? { slippage_bps: slippageBps } : {}),
+    slippage_bps: slippageBps,
   };
 }
 
@@ -136,7 +136,9 @@ async function quoteAllocations(client, normalized) {
   const swaps = client.wallets().swaps();
   const quotes = [];
   for (const allocation of normalized.allocation.allocations) {
-    const quote = await swaps.quote(normalized.walletId, swapParams(allocation.assetAddress, allocation.amountRaw, normalized.slippageBps));
+    let quote;
+    try { quote = await swaps.quote(normalized.walletId, swapParams(allocation.assetAddress, allocation.amountRaw, normalized.slippageBps)); }
+    catch (error) { if (error?.status === 403) throw new AutomationUnavailableError("PRIVY_SWAPS_NOT_ENABLED"); throw error; }
     quotes.push({
       assetSymbol: allocation.assetSymbol,
       assetAddress: allocation.assetAddress,
@@ -182,13 +184,19 @@ export function createB20UsdcRoute({ privyClient } = {}) {
     },
     async execute(request) {
       const normalized = validateRouteRequest(request);
+      if (!normalized.idempotencyKey || typeof request.checkpoint !== "function") throw new Error("ROUTE_CHECKPOINT_REQUIRED");
+      const wallet = await client.wallets().get(normalized.walletId);
+      if (wallet.chain_type !== "ethereum" || wallet.address?.toLowerCase() !== normalized.recipient) throw new Error("ROUTE_WALLET_MISMATCH");
       const quotes = await quoteAllocations(client, normalized);
       const swaps = client.wallets().swaps();
       const actions = [];
+      const stages = [];
       for (const item of quotes) {
         const nonce = `${normalized.idempotencyKey || randomUUID()}-${item.assetSymbol}`;
         let action;
         try {
+          stages.push({ stage: "B20_SWAP_SUBMITTING", assetSymbol: item.assetSymbol, spendRaw: item.spendRaw, nonce });
+          await request.checkpoint([...stages]);
           action = await swaps.execute(normalized.walletId, {
             ...swapParams(item.assetAddress, item.spendRaw, normalized.slippageBps),
             nonce,
@@ -207,6 +215,15 @@ export function createB20UsdcRoute({ privyClient } = {}) {
           action,
           transactionHashes: actionTransactionHashes(action),
         });
+        stages.push({ stage: "B20_SWAP_SUBMITTED", assetSymbol: item.assetSymbol, actionId: action.id, transactionHashes: actionTransactionHashes(action) });
+        try { await request.checkpoint([...stages]); }
+        catch (error) { error.partialActions = actions; throw error; }
+        // Never start another allocation while the preceding spend is pending.
+        if (action.status !== "succeeded" && action.status !== "confirmed") {
+          const error = new Error("B20_SWAP_PENDING_RECONCILIATION");
+          error.partialActions = actions;
+          throw error;
+        }
       }
       return { request: normalized, quotes, actions };
     },

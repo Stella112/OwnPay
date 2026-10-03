@@ -26,3 +26,4 @@ web/.vercel/
 .DS_Store
 *.log
 npm-debug.log*
+ownpay-robinhood-release.tgz

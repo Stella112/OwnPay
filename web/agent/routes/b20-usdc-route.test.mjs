@@ -18,6 +18,7 @@ function request(overrides = {}) {
   recipient,
     walletId: "wallet-test-1",
     idempotencyKey: "event-test-000000000000000000000000",
+    checkpoint: async () => {},
     slippageBps: 100,
     allocation: {
       totalRaw: "100",
@@ -80,6 +81,7 @@ test("enabled route quotes and executes only through the injected Privy swap ser
   const fakeClient = {
     wallets() {
       return {
+        async get() { return { chain_type: "ethereum", address: recipient }; },
         swaps() {
           return {
             async quote(walletId, params) {
@@ -88,7 +90,7 @@ test("enabled route quotes and executes only through the injected Privy swap ser
             },
             async execute(walletId, params) {
               calls.push(["execute", walletId, params]);
-              return { id: "action-1", steps: [{ type: "evm_transaction", transaction_hash: "0xabc" }] };
+              return { id: "action-1", status: "succeeded", steps: [{ type: "evm_transaction", transaction_hash: "0xabc" }] };
             },
           };
         },
@@ -104,6 +106,13 @@ test("enabled route quotes and executes only through the injected Privy swap ser
     assert.equal(executed.actions[0].transactionHashes[0], "0xabc");
     assert.equal(calls.filter(([kind]) => kind === "execute").length, 1);
     assert.equal(calls.find(([kind]) => kind === "execute")[2].authorization_context.authorization_private_keys[0], "key-test");
+    await assert.rejects(route.execute(request({ checkpoint: undefined })), /ROUTE_CHECKPOINT_REQUIRED/);
+    await assert.rejects(route.execute(request({ recipient: "0x0000000000000000000000000000000000000002" })), /ROUTE_WALLET_MISMATCH/);
+    const before = calls.filter(([kind]) => kind === "execute").length;
+    await assert.rejects(route.execute(request({ checkpoint: async () => { throw new Error("AUTOMATION_AUTHORITY_CHANGED"); } })), /AUTOMATION_AUTHORITY_CHANGED/);
+    assert.equal(calls.filter(([kind]) => kind === "execute").length, before);
+    const blockedRoute = createB20UsdcRoute({ privyClient: { wallets: () => ({ get: async () => ({ chain_type: "ethereum", address: recipient }), swaps: () => ({ quote: async () => { const error = new Error("Forbidden"); error.status = 403; throw error; }, execute: async () => { throw new Error("Must never execute"); } }) }) } });
+    await assert.rejects(blockedRoute.execute(request()), /PRIVY_SWAPS_NOT_ENABLED/);
   } finally {
     for (const [name, value] of Object.entries({
       OWNPAY_B20_ROUTE_ENABLED: previous.enabled,

@@ -11,7 +11,7 @@ export const runtime = "nodejs";
  */
 export async function GET(request: Request) {
   try {
-    const user = await authenticatePrivyRequest(request);
+    const user = await authenticatePrivyRequest(request, true);
     const wallet = new URL(request.url).searchParams.get("wallet") ?? "";
     const identity = assertUserOwnsWallet(user, wallet);
     const rule = await getLatestOwnershipRule(identity.userId, identity.walletAddress);
@@ -28,10 +28,12 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 }); }
   try {
-    const user = await authenticatePrivyRequest(request);
+    const user = await authenticatePrivyRequest(request, true);
     const value = body && typeof body === "object" ? body as { walletAddress?: unknown; candidate?: unknown } : {};
     const identity = assertUserOwnsWallet(user, String(value.walletAddress ?? ""));
-    const validated = validateOwnershipRuleCandidate(value.candidate, identity.walletAddress);
+    let validated;
+    try { validated = validateOwnershipRuleCandidate(value.candidate, identity.walletAddress); }
+    catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid ownership rule." }, { status: 400 }); }
     const rule = await saveOwnershipRule(identity.userId, identity.walletAddress, validated);
     return NextResponse.json({ rule }, { status: 201, headers: { "cache-control": "no-store" } });
   } catch (error) {

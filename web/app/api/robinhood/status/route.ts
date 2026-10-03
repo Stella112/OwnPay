@@ -1,0 +1,74 @@
+import { readFile } from 'node:fs/promises';
+import { erc20Abi, isAddress, zeroAddress } from 'viem';
+import { ownRulesAbi, TEST_USDG } from '@/lib/robinhood';
+import { rhVestingAbi } from '@/lib/robinhood-vesting';
+import { rhPublic, verifyRhDeployment } from '@/lib/robinhood-server';
+export const runtime = 'nodejs';
+
+async function readAgentService(router: string) {
+  const path = process.env.ROBINHOOD_AGENT_HEALTH_FILE;
+  if (!path) return { state: 'not-reporting', mode: null, updatedAt: null, lastActionAt: null, lastCycleOk: null, trackedAccounts: 0, pendingAccounts: 0 };
+  try {
+    const health = JSON.parse(await readFile(path, 'utf8'));
+    const updatedMs = typeof health.updatedAt === 'string' ? Date.parse(health.updatedAt) : NaN;
+    if (health.chainId !== 46630 || typeof health.router !== 'string' || health.router.toLowerCase() !== router.toLowerCase() || !Number.isFinite(updatedMs)) {
+      return { state: 'not-reporting', mode: null, updatedAt: null, lastActionAt: null, lastCycleOk: null, trackedAccounts: 0, pendingAccounts: 0 };
+    }
+    const age = Date.now() - updatedMs;
+    const state = age > 180_000 || age < -60_000 ? 'stale' : health.lastCycleOk === false ? 'degraded' : 'online';
+    return {
+      state,
+      mode: health.mode === 'execute' || health.mode === 'observe' ? health.mode : null,
+      updatedAt: new Date(updatedMs).toISOString(),
+      lastActionAt: typeof health.lastActionAt === 'string' ? health.lastActionAt : null,
+      lastCycleOk: typeof health.lastCycleOk === 'boolean' ? health.lastCycleOk : null,
+      trackedAccounts: Number.isSafeInteger(health.trackedAccounts) && health.trackedAccounts >= 0 ? health.trackedAccounts : 0,
+      pendingAccounts: Number.isSafeInteger(health.pendingAccounts) && health.pendingAccounts >= 0 ? health.pendingAccounts : 0,
+    };
+  } catch {
+    return { state: 'not-reporting', mode: null, updatedAt: null, lastActionAt: null, lastCycleOk: null, trackedAccounts: 0, pendingAccounts: 0 };
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const config = await verifyRhDeployment();
+    const agentService = await readAgentService(config.router);
+    const value = new URL(request.url).searchParams.get('owner');
+    const owners = (process.env.ROBINHOOD_SPONSORED_OWNERS || '').toLowerCase().split(',');
+    const base = { chainId: 46630, router: config.router, demoAdapter: config.demoAdapter, demoAsset: config.demoAsset,
+      agent: process.env.ROBINHOOD_AGENT_ADDRESS || null, relayEnabled: !!process.env.ROBINHOOD_RELAY_PRIVATE_KEY && !!value && owners.includes(value.toLowerCase()),
+      agentService, sponsorship: 'Custom signed-intent relay; not an ERC-4337 paymaster', stockTokens: 'No official testnet deployments found in registry', complianceMode: 'Local test policy, not KYC' };
+    if (!value || !isAddress(value)) return Response.json(base);
+    const owner = value;
+    const read = { address: config.router, abi: ownRulesAbi, args: [owner] } as const;
+    const [account, rule, savings, reserve, delegation, compliance, nonce, balance] = await Promise.all([
+      rhPublic.readContract({ ...read, functionName: 'accounts' }), rhPublic.readContract({ ...read, functionName: 'rules' }),
+      rhPublic.readContract({ ...read, functionName: 'savings' }), rhPublic.readContract({ ...read, functionName: 'ownershipReserve' }),
+      rhPublic.readContract({ ...read, functionName: 'delegations' }), rhPublic.readContract({ ...read, functionName: 'compliance' }),
+      rhPublic.readContract({ ...read, functionName: 'nonces' }),
+      rhPublic.readContract({ address: TEST_USDG, abi: erc20Abi, functionName: 'balanceOf', args: [owner] }),
+    ]);
+    const incoming = account === zeroAddress ? 0n : await rhPublic.readContract({ address: TEST_USDG, abi: erc20Abi, functionName: 'balanceOf', args: [account] });
+    const assetBalance = config.demoAsset && isAddress(config.demoAsset) ? await rhPublic.readContract({ address: config.demoAsset, abi: erc20Abi, functionName: 'balanceOf', args: [owner] }) : null;
+    const vesting = await rhPublic.readContract({ address: config.router, abi: ownRulesAbi, functionName: 'vesting' });
+    const vestingSeconds = await rhPublic.readContract({ ...read, functionName: 'vestingSeconds' });
+    const grantCount = await rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'grantCount', args: [owner] });
+    const grants = await Promise.all(Array.from({ length: Number(grantCount < 25n ? grantCount : 25n) }, async (_, i) => {
+      const id = await rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'grantId', args: [owner, grantCount - 1n - BigInt(i)] });
+      const [grant, claimable] = await Promise.all([
+        rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'grants', args: [id] }),
+        rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'claimable', args: [id] }),
+      ]); return { id, asset: grant[1], total: grant[2], released: grant[3], start: grant[4], end: grant[4] + grant[5], claimable };
+    }));
+    // Bounded query with explicit incomplete-state warning rather than fabricated zero history.
+    const latest = await rhPublic.getBlockNumber(); const fromBlock = latest > 1500n && latest - 1500n > config.startBlock ? latest - 1500n : config.startBlock;
+    let receipts: unknown[] = []; let historyWarning: string | null = null;
+    try {
+      const logs = await rhPublic.getContractEvents({ address: config.router, abi: ownRulesAbi, eventName: 'PaymentReceipt', args: { owner }, fromBlock, toBlock: latest });
+      receipts = logs.map(l => ({ hash: l.transactionHash, block: l.blockNumber, ...l.args }));
+      if (fromBlock > config.startBlock) historyWarning = 'Showing the last 1500 blocks only. Older receipts remain on the explorer.';
+    } catch { historyWarning = 'RPC history unavailable. Balances loaded independently; use explorer for receipts.'; }
+    return new Response(JSON.stringify({ ...base, account, rule, savings, reserve, delegation, compliance, nonce, balance, incoming, assetBalance, vesting, vestingSeconds, grants, grantCount, receipts, historyWarning }, (_, v) => typeof v === 'bigint' ? String(v) : v), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  } catch (e) { return Response.json({ error: e instanceof Error ? e.message : 'Testnet unavailable' }, { status: 503 }); }
+}

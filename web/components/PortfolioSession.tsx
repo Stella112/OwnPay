@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { parseAbiItem, type Address, type Hex } from "viem";
 import { useAccount, useChainId, usePublicClient } from "wagmi";
 import { useSetActiveWallet } from "@privy-io/wagmi";
-import { useConnectWallet, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
+import { getEmbeddedConnectedWallet, useConnectWallet, usePrivy, useWallets, type ConnectedWallet } from "@privy-io/react-auth";
 import { useQuery } from "@tanstack/react-query";
 import { BASESCAN_ADDRESS, BASESCAN_TX } from "@/lib/explorer";
 import { STOCK_VESTING_ADDRESS, erc20Abi, stockVestingAbi } from "@/lib/contracts";
@@ -84,20 +84,33 @@ type PortfolioSnapshot = {
 type ReadClient = NonNullable<ReturnType<typeof usePublicClient>>;
 
 export function PortfolioSession() {
+  if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) return <PortfolioSessionContent sessionActive />;
+  return <PrivyPortfolioSession />;
+}
+
+function PrivyPortfolioSession() {
+  const { ready, authenticated } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
+  const embeddedWallet = getEmbeddedConnectedWallet(wallets);
+  return <PortfolioSessionContent sessionActive={ready && authenticated} privyMode embeddedAddress={walletsReady ? embeddedWallet?.address as Address | undefined : undefined} />;
+}
+
+function PortfolioSessionContent({ sessionActive, privyMode = false, embeddedAddress }: { sessionActive: boolean; privyMode?: boolean; embeddedAddress?: Address }) {
   const { address } = useAccount();
   const chainId = useChainId();
   const client = usePublicClient();
-  const enabled = !!address && !!client && chainId === EXPECTED_CHAIN_ID;
+  const activeAddress = sessionActive ? (privyMode ? embeddedAddress : address) : undefined;
+  const enabled = !!activeAddress && !!client && chainId === EXPECTED_CHAIN_ID;
   const query = useQuery({
-    queryKey: ["portfolio-session", address, chainId],
-    queryFn: () => readPortfolio(client as ReadClient, address as Address),
+    queryKey: ["portfolio-session", activeAddress, chainId],
+    queryFn: () => readPortfolio(client as ReadClient, activeAddress as Address),
     enabled,
     refetchInterval: 60_000,
     retry: 2,
     retryDelay: 1_000,
   });
 
-  if (!address) {
+  if (!activeAddress) {
     return <PortfolioEmpty title="Sign in to see your portfolio." body="Your balances, grants, and activity will appear here after Privy sign-in." />;
   }
   if (chainId !== EXPECTED_CHAIN_ID) {
@@ -110,7 +123,7 @@ export function PortfolioSession() {
     return <PortfolioEmpty title="Portfolio temporarily unavailable." body="Base did not return a complete portfolio snapshot." action={query.refetch} />;
   }
 
-  return <PortfolioView snapshot={query.data} address={address} />;
+  return <PortfolioView snapshot={query.data} address={activeAddress} />;
 }
 
 function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; address: Address }) {
@@ -129,8 +142,6 @@ function PortfolioView({ snapshot, address }: { snapshot: PortfolioSnapshot; add
         <div><p className="eyebrow">Your portfolio</p><h2 id="portfolio-title">Everything you own and send.</h2></div>
         <div className="portfolio-heading-actions"><a className="section-count" href={BASESCAN_ADDRESS(address)} target="_blank" rel="noopener noreferrer">View wallet ↗</a><WalletAddressCopy address={address} compact /></div>
       </div>
-
-      <PortfolioWalletSwitcher activeAddress={address} />
 
       <div className="portfolio-metrics">
         <Metric label="Base ETH" value={`${formatUiAmount(snapshot.ethBalance, 18)} ETH`} detail="Available for gas" />

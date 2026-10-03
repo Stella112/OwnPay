@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-03T00:40:11.702Z",
+  "chainId": 46630,
+  "sdk": "5.5.10",
+  "validatorPackage": "5.4.9",
+  "contracts": {
+    "entryPoint07": {
+      "address": "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
+      "hasCode": true,
+      "bytecodeHash": "0x8db5ff695839d655407cc8490bb7a5d82337a86a6b39c3f0258aa6c3b582fc58"
+    },
+    "ecdsaValidator": {
+      "address": "0x845ADb2C711129d4f3966735eD98a9F09fC4cE57",
+      "hasCode": true,
+      "bytecodeHash": "0x2f8b585e669feb673b21af5666d38b5a9ef3c361cf29a48299240fa97c890708"
+    },
+    "kernelFactory": {
+      "address": "0xaac5D4240AF87249B3f71BC8E4A2cae074A3E419",
+      "hasCode": true,
+      "bytecodeHash": "0xeecde6f459d0ecadbd5b76e89de74d8187b52d5c71651fdfc007c45d4f2f3ca0"
+    }
+  },
+  "sponsorship": "BLOCKED: no ZeroDev project endpoint or gas policy configured",
+  "counterfactualTestAccount": "0x8Db406dD391F08B6a51ab6E84c5538148725c3A2",
+  "result": "SDK account derivation and required bytecode verified; sponsored user operation NOT executed"
+}

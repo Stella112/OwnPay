@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { PrivyClient } from "@privy-io/node";
 import {
   activateAgentAuthorization,
   databaseErrorResponse,
   getAgentAuthorization,
   revokeAgentAuthorization,
   setAgentAutomationPaused,
+  getLatestOwnershipRule,
 } from "@/lib/db";
 import {
   assertUserOwnsWallet,
@@ -15,12 +17,16 @@ import {
 
 export const runtime = "nodejs";
 
+function stockRouteStatus() {
+  return { venue: process.env.OWNPAY_B20_VENUE || "not configured", configured: process.env.OWNPAY_B20_ROUTE_ENABLED === "true" && process.env.OWNPAY_B20_VENUE === "kyberswap" && !!(process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID) && !!process.env.PRIVY_APP_SECRET && !!process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY };
+}
+
 export async function GET(request: Request) {
   try {
-    const user = await authenticatePrivyRequest(request);
+    const user = await authenticatePrivyRequest(request, true);
     const wallet = new URL(request.url).searchParams.get("wallet") ?? "";
     const identity = assertUserOwnsWallet(user, wallet);
-    return NextResponse.json({ authorization: await getAgentAuthorization(identity.userId, identity.walletAddress) }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ authorization: await getAgentAuthorization(identity.userId, identity.walletAddress), stockRoute: stockRouteStatus() }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("OWNPAY_AUTOMATION_GET_ERROR", error instanceof Error ? error.message : String(error));
     const auth = authErrorResponse(error);
@@ -34,7 +40,7 @@ export async function POST(request: Request) {
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 }); }
   try {
-    const user = await authenticatePrivyRequest(request);
+    const user = await authenticatePrivyRequest(request, true);
     const value = body && typeof body === "object" ? body as { walletAddress?: unknown; action?: unknown; privyWalletId?: unknown } : {};
     const identity = assertUserOwnsWallet(user, String(value.walletAddress ?? ""));
     const action = String(value.action ?? "");
@@ -42,10 +48,26 @@ export async function POST(request: Request) {
       if (!isPrivyEmbeddedWalletDelegated(user, identity.walletAddress)) {
         return NextResponse.json({ error: "Privy delegation has not been confirmed yet. Finish the delegation prompt, then try again." }, { status: 409 });
       }
-      const authorization = await activateAgentAuthorization(identity.userId, identity.walletAddress, value.privyWalletId ? String(value.privyWalletId) : null);
+      const appId = process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+      const signerId = process.env.PRIVY_KEY_QUORUM_ID || process.env.NEXT_PUBLIC_PRIVY_KEY_QUORUM_ID;
+      if (!appId || !process.env.PRIVY_APP_SECRET || !signerId) return NextResponse.json({ error: "Server-side delegation verification is not configured." }, { status: 503 });
+      const linkedWallet = user.linked_accounts.find((account) => account.type === "wallet" && "address" in account && account.address.toLowerCase() === identity.walletAddress && "id" in account);
+      const walletId = String(value.privyWalletId || (linkedWallet && "id" in linkedWallet ? linkedWallet.id : "") || "");
+      if (!walletId || walletId.length > 200) return NextResponse.json({ error: "The embedded wallet ID is required." }, { status: 400 });
+      const privy = new PrivyClient({ appId, appSecret: process.env.PRIVY_APP_SECRET });
+      const wallet = await privy.wallets().get(walletId);
+      if (wallet.chain_type !== "ethereum" || wallet.address.toLowerCase() !== identity.walletAddress || !wallet.additional_signers.some((signer) => signer.signer_id === signerId)) {
+        return NextResponse.json({ error: "Agent signer access has not been confirmed for this wallet. Complete the Privy prompt, then retry." }, { status: 409 });
+      }
+      const authorization = await activateAgentAuthorization(identity.userId, identity.walletAddress, wallet.id);
       return NextResponse.json({ authorization }, { status: 200, headers: { "cache-control": "no-store" } });
     }
     if (action === "pause" || action === "resume") {
+      if (action === "resume") {
+        if (!stockRouteStatus().configured) return NextResponse.json({ error: "Stock execution is not configured on this deployment." }, { status: 503 });
+        const rule = await getLatestOwnershipRule(identity.userId, identity.walletAddress);
+        if (!rule?.enabled) return NextResponse.json({ error: "Save and approve an ownership rule for this wallet before resuming automation." }, { status: 409 });
+      }
       const authorization = await setAgentAutomationPaused(identity.userId, identity.walletAddress, action === "pause");
       if (!authorization) return NextResponse.json({ error: "Agent authority is not active." }, { status: 409 });
       return NextResponse.json({ authorization }, { headers: { "cache-control": "no-store" } });

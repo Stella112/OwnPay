@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-10-03T12:18:28.324Z",
+  "chainId": 46630,
+  "rpc": "https://rpc.testnet.chain.robinhood.com",
+  "usdg": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+  "decimals": 6,
+  "symbol": "USDG",
+  "bytecodeHash": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6",
+  "deployer": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "eth": "0.00993213057",
+  "usdgBalance": "98000000"
+}

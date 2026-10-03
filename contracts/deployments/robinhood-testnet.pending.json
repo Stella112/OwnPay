@@ -1,0 +1,10 @@
+{
+  "chainId": 46630,
+  "deployer": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "ownRules": "0x8173e2f3D59A633eEf99Dfd926f5Bc0a1D3922a9",
+  "routerTx": "0xcad79d0934c77777ebc37fb380c6e34bf26247744c8a0d2be00e8e944e4493d8",
+  "deploymentBlock": 128143748,
+  "demoAdapter": "0xACdF5260e2d89Cd29c3b09a32EEf3Ae6aB679081",
+  "adapterTx": "0x7a9aee39526f435e4dbc9e1ccb44bfd81f658396285e6d750bcdcafc2e82f51f",
+  "adapterApprovalTx": "0x8f8b802d9007ff852680b5f30cf6d370416443866f1742b79256130499b18a81"
+}

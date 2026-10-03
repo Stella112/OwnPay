@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-10-03T11:21:04.022Z",
+  "chainId": 46630,
+  "method": "eth_call contract-creation simulation",
+  "status": "simulation-only",
+  "runtimeBytes": 13877,
+  "runtimeHash": "0x12dee0f5cfdf25f9ca15be223d77bb914c83288f3df28d143cfcb51996b7d990",
+  "disclaimer": "No transaction sent, no deployed address and no persistent contract state. Not deployment/demo evidence."
+}

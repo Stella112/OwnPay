@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import pg from "pg";
 import { createPublicClient, http, parseAbiItem } from "viem";
 import { createB20UsdcRoute } from "./routes/b20-usdc-route.mjs";
+import { createKyberB20Route } from "./routes/kyber-b20-route.mjs";
+import { createDpriUsdcRoute } from "./routes/dpri-usdc-route.mjs";
 
 const { Pool } = pg;
 const BASE_CHAIN_ID = 8453;
@@ -34,11 +36,12 @@ const config = {
   // Base public RPCs can reject USDC log queries that are too large. Keep the
   // default conservative; operators can raise it only after observing their
   // chosen RPC's response-size limits.
-  chunkSize: BigInt(process.env.AGENT_BLOCK_CHUNK || "10"),
+  chunkSize: BigInt(process.env.AGENT_BLOCK_CHUNK || "500"),
   pollMs: Number(process.env.AGENT_POLL_INTERVAL_MS || "30000"),
   mode: process.env.OWNPAY_AGENT_MODE || "observe",
 };
-const route = createB20UsdcRoute();
+const route = process.env.OWNPAY_B20_VENUE === "kyberswap" ? createKyberB20Route() : createB20UsdcRoute();
+const dpriRoute = createDpriUsdcRoute();
 
 function assertSafeConfig() {
   if (config.chainId !== BASE_CHAIN_ID) throw new Error("AGENT_CHAIN_ID must be Base mainnet (8453).");
@@ -113,6 +116,8 @@ async function processPayment(pool, log) {
   const client = await pool.connect();
   try {
     await client.query("begin");
+    // Lock the wallet budget across workers and rule versions.
+    await client.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [recipient]);
     const inserted = await client.query(
       `insert into ownpay_payment_events (event_id, chain_id, transaction_hash, log_index, recipient, amount_raw, status)
        values ($1, $2, $3, $4, $5, $6, 'DETECTED')
@@ -138,6 +143,12 @@ async function processPayment(pool, log) {
       return "SKIPPED";
     }
 
+    if (!log.blockTime || log.blockTime < new Date(rule.created_at).getTime()) {
+      await client.query("update ownpay_payment_events set status = 'SKIPPED' where event_id = $1", [id]);
+      await client.query("commit");
+      return "SKIPPED_BEFORE_RULE";
+    }
+
     if (amountRaw < BigInt(rule.minimum_payment_raw)) {
       await client.query("update ownpay_payment_events set status = 'SKIPPED' where event_id = $1", [id]);
       await client.query("commit");
@@ -153,15 +164,15 @@ async function processPayment(pool, log) {
     const allocation = calculateAllocation(amountRaw, rule);
     const daily = await client.query(
       `select coalesce(sum(allocation_raw), 0) as total from ownpay_execution_receipts
-       where rule_id = $1 and status in ('ELIGIBLE', 'QUOTING', 'EXECUTING', 'CONFIRMED')
+       where rule_id in (select id from ownpay_ownership_rules where lower(wallet_address) = $1) and status in ('ELIGIBLE', 'QUOTING', 'EXECUTING', 'CONFIRMED', 'PARTIAL')
        and created_at >= now() - interval '1 day'`,
-      [rule.id],
+      [recipient],
     );
     const monthly = await client.query(
       `select coalesce(sum(allocation_raw), 0) as total from ownpay_execution_receipts
-       where rule_id = $1 and status in ('ELIGIBLE', 'QUOTING', 'EXECUTING', 'CONFIRMED')
+       where rule_id in (select id from ownpay_ownership_rules where lower(wallet_address) = $1) and status in ('ELIGIBLE', 'QUOTING', 'EXECUTING', 'CONFIRMED', 'PARTIAL')
        and created_at >= now() - interval '30 days'`,
-      [rule.id],
+      [recipient],
     );
     const dailyTotal = BigInt(daily.rows[0].total);
     const monthlyTotal = BigInt(monthly.rows[0].total);
@@ -170,8 +181,10 @@ async function processPayment(pool, log) {
     if (monthlyTotal + BigInt(allocation.totalRaw) > BigInt(rule.max_monthly_raw)) errorCode = "MONTHLY_LIMIT";
     if (!errorCode && authorityError) errorCode = authorityError;
     if (!errorCode && config.mode !== "execute") errorCode = "AGENT_OBSERVE_MODE";
-    if (!errorCode && allocation.allocations.some((item) => item.assetSymbol === "DPRI")) errorCode = "GETEQUITY_ROUTE_NOT_CONFIGURED";
-    if (!errorCode && !route.status.enabled) errorCode = route.status.reason;
+    const hasDpri = allocation.allocations.some((item) => item.assetSymbol === "DPRI");
+    const selectedRoute = hasDpri ? dpriRoute : route;
+    if (!errorCode && hasDpri && allocation.allocations.length !== 1) errorCode = "MIXED_DPRI_ROUTE_NOT_SUPPORTED";
+    if (!errorCode && !selectedRoute.status.enabled) errorCode = selectedRoute.status.reason;
 
     const receiptId = randomUUID();
     await client.query(
@@ -188,7 +201,8 @@ async function processPayment(pool, log) {
 
     let execution;
     try {
-      execution = await route.execute({
+      await pool.query("update ownpay_execution_receipts set status = 'QUOTING', updated_at = now() where id = $1", [receiptId]);
+      execution = await selectedRoute.execute({
         chainId: config.chainId,
         usdcAddress: config.usdcAddress,
         recipient,
@@ -196,15 +210,24 @@ async function processPayment(pool, log) {
         walletId: authority.privy_wallet_id,
         idempotencyKey: id,
         allocation,
+        checkpoint: async (stages) => {
+          if (stages.at(-1)?.stage.endsWith("_SUBMITTING")) {
+            const currentAuthority = await getAgentAuthority(pool, recipient);
+            const currentRule = await pool.query("select id, enabled from ownpay_ownership_rules where lower(wallet_address) = $1 order by version desc limit 1", [recipient]);
+            if (!currentAuthority || currentAuthority.status !== "ACTIVE" || currentAuthority.automation_paused || !currentAuthority.privy_delegated || currentRule.rows[0]?.id !== rule.id || !currentRule.rows[0]?.enabled) throw new Error("AUTOMATION_AUTHORITY_CHANGED");
+          }
+          await pool.query("update ownpay_execution_receipts set status = 'EXECUTING', allocation = allocation || $2::jsonb, updated_at = now() where id = $1", [receiptId, JSON.stringify({ stages })]);
+        },
       });
     } catch (error) {
       const partialActions = Array.isArray(error?.partialActions) ? error.partialActions : [];
+      const routeError = error?.code === "AUTOMATION_UNAVAILABLE" || /^KYBER_[A-Z_]+$/.test(error?.message ?? "") ? error.message : "ROUTE_EXECUTION_FAILED";
       const partialHashes = partialActions.flatMap((action) => Array.isArray(action.transactionHashes) ? action.transactionHashes : []);
       const partialData = JSON.stringify({ executions: partialActions.map((action) => ({ assetSymbol: action.assetSymbol, actionId: action.action?.id ?? null, status: action.action?.status ?? null, transactionHashes: action.transactionHashes })) });
       await pool.query(
         `update ownpay_execution_receipts set status = $2, error_code = $3, transaction_hash = $4, allocation = coalesce(allocation, '{}'::jsonb) || $5::jsonb, updated_at = now()
          where id = $1`,
-        [receiptId, partialActions.length ? "PARTIAL" : "BLOCKED", "ROUTE_EXECUTION_FAILED", partialHashes[0] ?? null, partialData],
+        [receiptId, partialActions.length ? "PARTIAL" : "BLOCKED", routeError, partialHashes[0] ?? null, partialData],
       );
       await pool.query("update ownpay_payment_events set status = $2 where event_id = $1", [id, partialActions.length ? "PARTIAL" : "BLOCKED"]);
       return partialActions.length ? "PARTIAL:ROUTE_EXECUTION_FAILED" : "BLOCKED:ROUTE_EXECUTION_FAILED";
@@ -219,7 +242,7 @@ async function processPayment(pool, log) {
       minimumOutputRaw: action.minimumOutputRaw,
     }));
     const transactionHashes = executions.flatMap((action) => action.transactionHashes);
-    const allConfirmed = executions.length > 0 && executions.every((action) => action.status === "confirmed");
+    const allConfirmed = executions.length > 0 && executions.every((action) => action.status === "succeeded" || action.status === "confirmed");
     const executionStatus = allConfirmed ? "CONFIRMED" : "EXECUTING";
     await pool.query(
       `update ownpay_execution_receipts set status = $2, error_code = null, transaction_hash = $3, allocation = coalesce(allocation, '{}'::jsonb) || $4::jsonb, updated_at = now()
@@ -237,36 +260,63 @@ async function processPayment(pool, log) {
 }
 
 async function scanOnce(pool, publicClient) {
-  const latest = await publicClient.getBlockNumber();
+  // Stay two blocks behind the head instead of reacting to unconfirmed income.
+  const head = await publicClient.getBlockNumber();
+  const latest = head > 2n ? head - 2n : 0n;
   const cursor = await getCursor(pool);
   const fromBlock = cursor === null ? (config.startBlock ?? latest) : cursor + 1n;
   if (fromBlock > latest) return { fromBlock, toBlock: latest, processed: 0 };
   const toBlock = fromBlock + config.chunkSize - 1n > latest ? latest : fromBlock + config.chunkSize - 1n;
-  const logs = await publicClient.getLogs({ address: config.usdcAddress, event: transferEvent, fromBlock, toBlock });
+  const watched = await pool.query(`select wallet_address from (
+    select distinct on (lower(wallet_address)) wallet_address, enabled
+    from ownpay_ownership_rules order by lower(wallet_address), version desc
+  ) latest where enabled = true`);
+  // When nobody has a rule, advance the cursor without storing the whole chain.
+  const recipients = watched.rows.map((row) => String(row.wallet_address).toLowerCase());
+  if (!recipients.length) {
+    await saveCursor(pool, latest);
+    return { fromBlock, toBlock: latest, processed: 0, behind: false };
+  }
+  const logs = [];
+  for (let index = 0; index < recipients.length; index += 50) {
+    logs.push(...await publicClient.getLogs({ address: config.usdcAddress, event: transferEvent, args: { to: recipients.slice(index, index + 50) }, fromBlock, toBlock }));
+  }
   let processed = 0;
+  const blockTimes = new Map();
   for (const log of logs) {
     if (!log.args?.to || !log.transactionHash || log.logIndex === undefined) continue;
+    if (!blockTimes.has(log.blockNumber)) {
+      const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+      blockTimes.set(log.blockNumber, Number(block.timestamp) * 1000);
+    }
+    log.blockTime = blockTimes.get(log.blockNumber);
     const result = await processPayment(pool, log);
     if (result !== "DUPLICATE") processed += 1;
     console.log(`OWNPAY_AGENT_EVENT ${eventId(log)} ${result}`);
   }
   await saveCursor(pool, toBlock);
-  return { fromBlock, toBlock, processed };
+  return { fromBlock, toBlock, processed, behind: toBlock < latest };
 }
 
 async function main() {
   assertSafeConfig();
-  const pool = new Pool({ connectionString: requiredDatabaseUrl(), max: 2, connectionTimeoutMillis: 5_000 });
+  const pool = new Pool({ connectionString: requiredDatabaseUrl(), max: 3, connectionTimeoutMillis: 5_000 });
   const publicClient = createPublicClient({ chain: { id: BASE_CHAIN_ID, name: "Base", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [config.rpcUrl] } } }, transport: http(config.rpcUrl) });
   console.log(`OWNPAY_AGENT_READY chain=${config.chainId} asset=${BASE_USDC} mode=${config.mode} authority=guarded route=${route.status.reason}`);
   try {
-    await pool.query("select 1");
+    const lease = await pool.connect();
+    const locked = await lease.query("select pg_try_advisory_lock(8453, 197310) as locked");
+    if (!locked.rows[0].locked) { lease.release(); throw new Error("OWNPAY_AGENT_ALREADY_RUNNING"); }
     const once = process.argv.includes("--once");
-    do {
+    try { do {
       const result = await scanOnce(pool, publicClient);
       console.log(`OWNPAY_AGENT_SCAN from=${result.fromBlock} to=${result.toBlock} processed=${result.processed}`);
-      if (!once) await new Promise((resolve) => setTimeout(resolve, config.pollMs));
-    } while (!once);
+      // Catch up old blocks immediately; sleep only once we reach the head.
+      if (!once) await new Promise((resolve) => setTimeout(resolve, result.behind ? 100 : config.pollMs));
+    } while (!once); } finally {
+      await lease.query("select pg_advisory_unlock(8453, 197310)");
+      lease.release();
+    }
   } finally {
     await pool.end();
   }

@@ -1,0 +1,62 @@
+{
+  "status": "completed",
+  "chainId": 46630,
+  "owner": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "agent": "0xCd6E180B32b2f49D8ae886636e63C04AEe93cC16",
+  "mode": "one-shot dedicated worker; not persistent service",
+  "transactions": [
+    {
+      "label": "Fund temporary test worker with 0.00002 test ETH",
+      "hash": "0xb3ecedc81aeacbe7e68db751a352cd9dcb4b1cf42b107137ba9e5369b91dcc15",
+      "block": 128146127
+    },
+    {
+      "label": "Use immediate demo output for worker rehearsal",
+      "hash": "0x09d851d7455f521eafe05822ead056093a8b7acb29877e18b0f413ffae02e892",
+      "block": 128146172
+    },
+    {
+      "label": "Authorize distinct test worker for ten minutes",
+      "hash": "0x6d2291e6a407b30db9b1af6b7275cf81607e335a444450984acbc830b690c4e2",
+      "block": 128146213
+    },
+    {
+      "label": "Deposit 1 canonical test USDG for worker processing",
+      "hash": "0x1b282ecfeacac8e36d27b81b16d2b825a7be8c94d93d74d00c0ef671ea8e1946",
+      "block": 128146248
+    },
+    {
+      "label": "Distinct worker confirmed incoming split",
+      "hash": "0xdc61f00744498ed76000ce6c42074b2e48411e4efb0aae393abd342b89ebcf5e",
+      "block": 128146382
+    },
+    {
+      "label": "Revoke temporary worker and restore vesting schedule",
+      "hash": "0xf680c9bb120aaeef003373aadbbbf08a62b60b3c414a5ed76e278e9cfd626f87",
+      "block": 128146451
+    }
+  ],
+  "workerEvents": [
+    {
+      "event": "agent_started",
+      "chainId": 46630,
+      "mode": "execute",
+      "agent": "0xCd6E180B32b2f49D8ae886636e63C04AEe93cC16",
+      "router": "0x8173e2f3D59A633eEf99Dfd926f5Bc0a1D3922a9"
+    },
+    {
+      "event": "income_split_confirmed",
+      "owner": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+      "rawUsdg": "1000000",
+      "hash": "0xdc61f00744498ed76000ce6c42074b2e48411e4efb0aae393abd342b89ebcf5e",
+      "block": "128146382"
+    }
+  ],
+  "split": {
+    "inputUSDG": "1",
+    "spendableUSDG": "0.7",
+    "savingsUSDG": "0.1",
+    "demoOwn": "0.2"
+  },
+  "finishedAt": "2026-10-03T12:19:21.685Z"
+}

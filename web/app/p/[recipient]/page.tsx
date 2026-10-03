@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { getAddress, isAddress } from "viem";
 import { usePublicClient } from "wagmi";
 import { AppShell } from "@/components/AppShell";
@@ -15,16 +16,15 @@ import { resolveRecipient, shortAddress, type ResolvedRecipient } from "@/lib/re
 import { isOwnPayLinkMode, normalizeOwnPayLinkRecipient, type OwnPayLinkMode } from "@/lib/ownpay-links";
 
 export default function OwnPayLinkPage() {
-  return <OwnPayLinkView />;
+  // useSearchParams needs a Suspense boundary.
+  return <Suspense fallback={<LinkLoading />}><OwnPayLinkView /></Suspense>;
 }
 
 function OwnPayLinkView() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const publicClient = usePublicClient();
-  const [resolved, setResolved] = useState<ResolvedRecipient>();
-  const [resolutionError, setResolutionError] = useState<string>();
-  const [loading, setLoading] = useState(true);
   const rawRecipient = useMemo(() => {
     const marker = "/p/";
     const encodedRecipient = pathname.startsWith(marker) ? pathname.slice(marker.length) : "";
@@ -34,54 +34,31 @@ function OwnPayLinkView() {
   const directResolved: ResolvedRecipient | undefined = useMemo(() => normalizedRecipient && isAddress(normalizedRecipient)
     ? { address: getAddress(normalizedRecipient), source: "address" as const }
     : undefined, [normalizedRecipient]);
-  const [mode, setMode] = useState<OwnPayLinkMode>("pay");
+  // The mode lives in the URL (?mode=gift|tip); derive it rather than mirroring it in state.
+  const modeParam = searchParams.get("mode");
+  const mode: OwnPayLinkMode = isOwnPayLinkMode(modeParam) ? modeParam : "pay";
 
-  useEffect(() => {
-    const modeParam = new URLSearchParams(window.location.search).get("mode");
-    setMode(isOwnPayLinkMode(modeParam) ? modeParam : "pay");
-  }, [pathname]);
-
-  useEffect(() => {
-    let active = true;
-    setResolved(undefined);
-    setResolutionError(undefined);
-    setLoading(true);
-    if (!normalizedRecipient) {
-      setResolutionError("This OwnPay Link is invalid.");
-      setLoading(false);
-      return () => { active = false; };
-    }
-    if (directResolved) {
-      setResolved(directResolved);
-      setLoading(false);
-      return () => { active = false; };
-    }
-    if (!publicClient) {
-      setResolutionError("This OwnPay Link is invalid.");
-      setLoading(false);
-      return () => { active = false; };
-    }
-    resolveRecipient(publicClient, normalizedRecipient).then((result) => {
-      if (!active) return;
-      if (result.ok) setResolved(result.value);
-      else setResolutionError(result.message);
-      setLoading(false);
-    }).catch(() => {
-      if (active) { setResolutionError("This OwnPay Link is invalid."); setLoading(false); }
-    });
-    return () => { active = false; };
-  }, [directResolved, normalizedRecipient, publicClient]);
+  // Raw addresses resolve synchronously; names (e.g. *.base.eth) resolve onchain.
+  const nameLookup = useQuery({
+    queryKey: ["ownpay-link-recipient", normalizedRecipient],
+    enabled: !!normalizedRecipient && !directResolved && !!publicClient,
+    queryFn: async () => {
+      const result = await resolveRecipient(publicClient!, normalizedRecipient!);
+      if (!result.ok) throw new Error(result.message);
+      return result.value;
+    },
+    retry: false,
+  });
 
   function changeMode(next: OwnPayLinkMode) {
-    setMode(next);
     const query = next === "pay" ? "" : `?mode=${next}`;
     router.replace(`${pathname}${query}`, { scroll: false });
   }
 
   if (!normalizedRecipient) return <InvalidLink />;
-  const effectiveResolved = directResolved ?? resolved;
-  if (!effectiveResolved && loading) return <LinkLoading />;
-  if (resolutionError || !effectiveResolved) return <InvalidLink />;
+  const effectiveResolved = directResolved ?? nameLookup.data;
+  if (!effectiveResolved && nameLookup.isPending && nameLookup.fetchStatus !== "idle") return <LinkLoading />;
+  if (!effectiveResolved) return <InvalidLink />;
 
   const displayName = effectiveResolved.name ?? shortAddress(effectiveResolved.address);
   const modeLabel = mode === "pay" ? "Pay" : mode === "gift" ? "Gift" : "Tip";

@@ -22,16 +22,9 @@ if [ -z "${NEXT_PUBLIC_PRIVY_KEY_QUORUM_ID:-}" ] && [ -n "${PRIVY_KEY_QUORUM_ID:
 fi
 
 npm --prefix web ci --legacy-peer-deps
-npm --prefix web run build
+NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=768}" npm --prefix web run build:vps
 
-# Next's standalone server does not copy these folders automatically. Keep the
-# generated server self-contained so CSS, optimized images, and public assets
-# work when PM2 launches web/.next/standalone/server.js.
-if [ -d web/.next/standalone ]; then
-  mkdir -p web/.next/standalone/.next/static web/.next/standalone/public
-  cp -R web/.next/static/. web/.next/standalone/.next/static/
-  cp -R web/public/. web/.next/standalone/public/
-fi
+# build:vps already copies static/public into the selected standalone output.
 
 pm2 startOrRestart deploy/ecosystem.ownpay.config.cjs --update-env
 pm2 save

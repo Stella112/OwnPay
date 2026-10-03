@@ -6,27 +6,29 @@ import { WalletButton } from "@/components/WalletButton";
 import { useEligibility } from "@/components/Eligibility";
 import { EXPECTED_CHAIN_ID } from "@/lib/wagmi";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+type AppShellVariant = "base" | "robinhood-testnet";
+
+export function AppShell({ children, variant = "base" }: { children: React.ReactNode; variant?: AppShellVariant }) {
   return (
     <div className="app">
       <header className="site-header">
         <div className="site-header-inner">
           <Link href="/" className="brand" aria-label="OwnPay home"><span className="logo-lockup"><img src="/ownpay-logo-lockup.png" alt="OwnPay" /></span></Link>
           <nav className="desktop-nav" aria-label="Primary navigation">
-            <a href="/#product">Product</a>
-            <a href="/#how-it-works">How it works</a>
-            <a href="/#use-cases">Use cases</a>
-            <a href="/#roadmap">Resources</a>
+            <Link href="/#product">Product</Link>
+            <Link href="/#how-it-works">How it works</Link>
+            <Link href="/#use-cases">Use cases</Link>
+            <Link href="/#roadmap">Resources</Link>
           </nav>
-          <div className="header-actions"><Link href="/app" className="header-dashboard-link">Dashboard</Link><WalletButton /></div>
+          <div className="header-actions"><Link href="/app" className="header-dashboard-link">Dashboard</Link>{variant === "base" && <WalletButton />}</div>
         </div>
       </header>
 
-      <NetworkNotice />
+      {variant === "base" && <NetworkNotice />}
 
       <main className="site-main">{children}</main>
 
-      <AppFooter />
+      <AppFooter variant={variant} />
     </div>
   );
 }
@@ -57,18 +59,18 @@ function NetworkNotice() {
   );
 }
 
-function AppFooter() {
+function AppFooter({ variant }: { variant: AppShellVariant }) {
   const { openDisclosure } = useEligibility();
   return (
     <footer className="app-footer">
       <div className="app-footer-inner">
-        <span className="muted">OwnPay · Base mainnet</span>
-        <button
+        <span className="muted">{variant === "base" ? "OwnPay · Base mainnet" : "OwnPay · Robinhood Chain Testnet"}</span>
+        {variant === "base" && <button
           onClick={openDisclosure}
           style={{ background: "none", border: 0, color: "var(--accent)", cursor: "pointer", fontSize: 12.5, fontFamily: "inherit" }}
         >
           Eligibility &amp; disclosures
-        </button>
+        </button>}
       </div>
     </footer>
   );

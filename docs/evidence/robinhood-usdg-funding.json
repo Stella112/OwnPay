@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-03T12:11:20.585Z",
+  "chainId": 46630,
+  "wallet": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "canonicalUSDG": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+  "confirmedBalanceUSDG": "100.0",
+  "method": "One normal public Paxos faucet request using the official frontend request format",
+  "configurationSource": "https://faucet.paxos.com/features.json",
+  "endpoint": "https://api.sandbox.paxos.com/v2/treasury/faucet/transfers",
+  "request": { "token": "USDG", "network": "ROBINHOOD", "address": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19" },
+  "httpStatus": 200,
+  "requestId": "89d2f326-a42f-4d8d-9f99-722c51dc7958",
+  "verification": "Canonical token balanceOf read on chain 46630; request acceptance alone was not treated as proof",
+  "userFundsSpent": false,
+  "stockSwapPerformed": false,
+  "testTokensHaveNoRealValue": true
+}

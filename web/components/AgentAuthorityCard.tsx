@@ -5,7 +5,7 @@ import { getEmbeddedConnectedWallet, getIdentityToken, useIdentityToken, usePriv
 import { useAccount } from "wagmi";
 import type { AgentAuthorization } from "@/lib/db";
 
-type ApiResponse = { error?: string; authorization?: AgentAuthorization | null };
+type ApiResponse = { error?: string; authorization?: AgentAuthorization | null; stockRoute?: { configured: boolean; venue: string } };
 
 export function AgentAuthorityCard() {
   const { authenticated, user, createWallet } = usePrivy();
@@ -24,20 +24,22 @@ export function AgentAuthorityCard() {
   const [authorization, setAuthorization] = useState<AgentAuthorization | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
+  const [stockRoute, setStockRoute] = useState<ApiResponse["stockRoute"]>();
 
   async function refreshStatus() {
-    const token = identityToken ?? await getIdentityToken();
+    const token = await getIdentityToken() ?? identityToken;
     if (!token || !walletAddress) throw new Error("Sign in with an embedded wallet to manage agent access.");
     const response = await fetch(`/api/automation?wallet=${encodeURIComponent(walletAddress)}`, { headers: { "x-privy-id-token": token }, cache: "no-store" });
     const body = await response.json() as ApiResponse;
     if (!response.ok) throw new Error(body.error ?? "Could not load agent status.");
     const next = body.authorization ?? null;
+    setStockRoute(body.stockRoute);
     setAuthorization(next);
     return next;
   }
 
   async function call(action: string, extra: Record<string, string> = {}, walletAddressOverride?: string) {
-    const token = identityToken ?? await getIdentityToken();
+    const token = await getIdentityToken() ?? identityToken;
     const requestedWalletAddress = walletAddressOverride ?? walletAddress;
     if (!token || !requestedWalletAddress) throw new Error("Sign in with an embedded wallet to manage agent access.");
     const response = await fetch("/api/automation", { method: "POST", headers: { "content-type": "application/json", "x-privy-id-token": token }, body: JSON.stringify({ walletAddress: requestedWalletAddress, action, ...extra }) });
@@ -49,7 +51,7 @@ export function AgentAuthorityCard() {
   useEffect(() => {
     if (!authenticated || !identityToken || !walletAddress) return;
     fetch(`/api/automation?wallet=${encodeURIComponent(walletAddress)}`, { headers: { "x-privy-id-token": identityToken }, cache: "no-store" })
-      .then(async (response) => { const body = await response.json() as ApiResponse; if (!response.ok) throw new Error(body.error ?? "Could not load agent status."); return body.authorization ?? null; })
+      .then(async (response) => { const body = await response.json() as ApiResponse; if (!response.ok) throw new Error(body.error ?? "Could not load agent status."); setStockRoute(body.stockRoute); return body.authorization ?? null; })
       .then(setAuthorization)
       .catch((cause) => setMessage(cause instanceof Error ? cause.message : "Could not load agent status."));
   }, [authenticated, identityToken, walletAddress]);
@@ -72,9 +74,7 @@ export function AgentAuthorityCard() {
         const duplicate = cause instanceof Error && /duplicate signer|already been added/i.test(cause.message);
         if (!duplicate) throw cause;
       }
-      if (!authorityWalletId) throw new Error("Privy did not return the embedded wallet ID yet. Refresh and try again.");
-      await call("activate", { privyWalletId: authorityWalletId }, authorityWallet.address);
-      await refreshStatus();
+      await call("activate", authorityWalletId ? { privyWalletId: authorityWalletId } : {}, authorityWallet.address);
       setMessage("Limited agent authority is active, with automation paused until you resume it.");
     } catch (cause) { setMessage(cause instanceof Error ? cause.message : "Delegation was not completed."); }
     finally { setBusy(false); }
@@ -101,6 +101,8 @@ export function AgentAuthorityCard() {
       <p className="soft" style={{ margin: 0, lineHeight: 1.5 }}>The agent can only be enabled after your explicit Privy delegation. OwnPay still enforces Base-only assets, verified contracts, and your saved spending limits.</p>
       <div className="agent-authority-status"><span className={`dot ${active ? "dot-success" : ""}`} /> <strong>{!active ? "Authority not configured" : authorization?.automationPaused ? "Automation paused" : "Automation active"}</strong></div>
       <p className="field-hint" style={{ margin: 0 }}>{!walletsReady ? "Loading your Privy wallet…" : embeddedWallet ? "Embedded wallet ready for limited automation." : "An embedded wallet will be created when you grant access. External wallets remain supported for manual payments."}</p>
+      {stockRoute && <p className="field-hint" role="status">{stockRoute.configured ? `Stock route configured: ${stockRoute.venue}. Each purchase requires a fresh quote and a successful simulation.` : "Stock execution is not configured on this deployment."}</p>}
+      {embeddedWallet && <p className="field-hint" style={{ overflowWrap: "anywhere" }}>Automation wallet: {embeddedWallet.address}. Receive new USDC and hold Base ETH for gas in this wallet. Your external wallet’s funds are not moved automatically.</p>}
       {message && <div className="field-hint" role="status">{message}</div>}
       <div className="row">
         {!active ? <button type="button" className="btn btn-primary" onClick={() => { void enable(); }} disabled={busy || !authenticated}>{busy ? "Waiting…" : "Grant limited access"}</button> : <><button type="button" className="btn btn-ghost" onClick={togglePause} disabled={busy}>{authorization?.automationPaused ? "Resume Automation" : "Pause Automation"}</button><button type="button" className="btn btn-ghost" onClick={revoke} disabled={busy}>Revoke Agent Access</button></>}

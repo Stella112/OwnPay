@@ -1,0 +1,156 @@
+{
+  "status": "completed-wallet-paid-demo",
+  "chainId": 46630,
+  "owner": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "accountRoles": "Deployer doubles as payer, recipient and test agent; no sponsorship claimed.",
+  "executedAt": "2026-10-03T12:13:43.657Z",
+  "transactions": [
+    {
+      "label": "Explicit local test-policy eligibility",
+      "hash": "0x50961cd2f0cec40ca3e5c219e4c354f55b8fb1170c5384df8e7d1d88d2267edf",
+      "block": 128144007,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x50961cd2f0cec40ca3e5c219e4c354f55b8fb1170c5384df8e7d1d88d2267edf"
+    },
+    {
+      "label": "Create purpose-limited receive smart account",
+      "hash": "0x44919d4b26361d018fdb99a94d5169d1101ea15cfb6411e13afe66ceb04a556f",
+      "block": 128144043,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x44919d4b26361d018fdb99a94d5169d1101ea15cfb6411e13afe66ceb04a556f"
+    },
+    {
+      "label": "OwnRule 70/10/20 with USDG ownership reserve",
+      "hash": "0x82a065a988d31249a5b49c3cd586ebd8d6b2707f5a89a88aeb824b40996a2281",
+      "block": 128144074,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x82a065a988d31249a5b49c3cd586ebd8d6b2707f5a89a88aeb824b40996a2281"
+    },
+    {
+      "label": "Reset previous demo vesting schedule",
+      "hash": "0x775d87c33e47e00a829c09a94838b27b6f6a150b822c3f4e8617586fc8ae09eb",
+      "block": 128144105,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x775d87c33e47e00a829c09a94838b27b6f6a150b822c3f4e8617586fc8ae09eb"
+    },
+    {
+      "label": "Exact 100 test USDG approval",
+      "hash": "0x660887b99aac05893925743b84063d11acde2ad5673d116bf4965d4b545e45ea",
+      "block": 128144135,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x660887b99aac05893925743b84063d11acde2ad5673d116bf4965d4b545e45ea"
+    },
+    {
+      "label": "100 USDG actual split",
+      "hash": "0xd43056cafdc8e457a12642ac61a5161432ba3bf1bf7fbfdac9651558c0e51d16",
+      "block": 128144175,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xd43056cafdc8e457a12642ac61a5161432ba3bf1bf7fbfdac9651558c0e51d16"
+    },
+    {
+      "label": "Withdraw 10 USDG savings",
+      "hash": "0x0e065f7a6b2694bceb42df85b13ae64a20403b9f05e72304f60e3625c1965519",
+      "block": 128144221,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x0e065f7a6b2694bceb42df85b13ae64a20403b9f05e72304f60e3625c1965519"
+    },
+    {
+      "label": "Withdraw 20 USDG reserve",
+      "hash": "0x43098cf135dfc4b906596d1acb1696fa2e756f043651bb414915642e91e06ceb",
+      "block": 128144255,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x43098cf135dfc4b906596d1acb1696fa2e756f043651bb414915642e91e06ceb"
+    },
+    {
+      "label": "Select no-value DEMO-OWN adapter",
+      "hash": "0xab6b19f340129652c9685f13038f042d27eca6238739e9ad3f610ea78a58fa7b",
+      "block": 128144281,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xab6b19f340129652c9685f13038f042d27eca6238739e9ad3f610ea78a58fa7b"
+    },
+    {
+      "label": "Deposit 100 test USDG to receive account",
+      "hash": "0xdf363fefd4aca6292d71779d818be3fe8225e14693b23acb1112b29d8fdb512d",
+      "block": 128144314,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xdf363fefd4aca6292d71779d818be3fe8225e14693b23acb1112b29d8fdb512d"
+    },
+    {
+      "label": "Constrained delegate (demo deployer doubles as test agent)",
+      "hash": "0xf73f7c160e5a5dc7c8832eb9ed189aaf182cb7b48411fed505bee2aa2cf77c43",
+      "block": 128144343,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xf73f7c160e5a5dc7c8832eb9ed189aaf182cb7b48411fed505bee2aa2cf77c43"
+    },
+    {
+      "label": "Process income into 70 USDG cash, 10 savings, 20 DEMO-OWN",
+      "hash": "0xf6389af15e79f4dab4f6d075692a2c113f18ab6f992a83921069d49f3251e147",
+      "block": 128144379,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xf6389af15e79f4dab4f6d075692a2c113f18ab6f992a83921069d49f3251e147"
+    },
+    {
+      "label": "Recover savings for vesting demo",
+      "hash": "0xa34838ccec82565a0489a662379b8de4d9bcda22de90f7e46738d3efa960dd32",
+      "block": 128144413,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xa34838ccec82565a0489a662379b8de4d9bcda22de90f7e46738d3efa960dd32"
+    },
+    {
+      "label": "Set two-second test vesting schedule (revokes delegation)",
+      "hash": "0x6d884cad2a6f01b54b216c4456fd7ea59bd9f3461046e3ec81ea9f17da1610b1",
+      "block": 128144439,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x6d884cad2a6f01b54b216c4456fd7ea59bd9f3461046e3ec81ea9f17da1610b1"
+    },
+    {
+      "label": "Authorize exact new rule version",
+      "hash": "0xd668b207d4dcc0f6800674d5f3777380f80eb78441c4d33e47910ab6f8571233",
+      "block": 128144479,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xd668b207d4dcc0f6800674d5f3777380f80eb78441c4d33e47910ab6f8571233"
+    },
+    {
+      "label": "Deposit 20 test USDG for vested ownership",
+      "hash": "0x7f9e096750646dd68803a6e6731b73c524977503e6609b2e8535fbcb9c882d32",
+      "block": 128144514,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x7f9e096750646dd68803a6e6731b73c524977503e6609b2e8535fbcb9c882d32"
+    },
+    {
+      "label": "Process income into funded ownership vesting",
+      "hash": "0xedb2d258ed0696dc8d42392b42cc2e2d2d0f74b32ed50cfa631ed68856be650f",
+      "block": 128144546,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xedb2d258ed0696dc8d42392b42cc2e2d2d0f74b32ed50cfa631ed68856be650f"
+    },
+    {
+      "label": "Claim matured DEMO-OWN to named recipient",
+      "hash": "0x0aeefb7e689e785f39095c89c62a75bd4a91234b5b42e485a5159c906f65e0a4",
+      "block": 128144593,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x0aeefb7e689e785f39095c89c62a75bd4a91234b5b42e485a5159c906f65e0a4"
+    },
+    {
+      "label": "Revoke constrained test delegation",
+      "hash": "0x512e58f9cb3586f4994753041b269ba5e2480ac6c46e433685d432680f7ce003",
+      "block": 128144625,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x512e58f9cb3586f4994753041b269ba5e2480ac6c46e433685d432680f7ce003"
+    },
+    {
+      "label": "Block recipient in test compliance policy",
+      "hash": "0x9fb057ac30f79f08a750ff64910c3199b0c6046e1cbe8c715b35cdabfd80f076",
+      "block": 128144650,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x9fb057ac30f79f08a750ff64910c3199b0c6046e1cbe8c715b35cdabfd80f076"
+    },
+    {
+      "label": "Restore explicit test eligibility",
+      "hash": "0x523f44a5c7477b57e75bd1ea319e0fc21a9e20f00cc06b6440564f54f8597bd9",
+      "block": 128144690,
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x523f44a5c7477b57e75bd1ea319e0fc21a9e20f00cc06b6440564f54f8597bd9"
+    }
+  ],
+  "negativeChecks": [
+    "Blocked recipient rejected by eth_call: compliance denied"
+  ],
+  "split": {
+    "inputRaw": "100000000",
+    "actualSpendableRaw": "70000000",
+    "savingsRaw": "10000000",
+    "ownershipReserveRaw": "20000000"
+  },
+  "vesting": {
+    "grantId": "0",
+    "totalRaw": "4000000000000000000",
+    "start": "1791029698",
+    "durationSeconds": "2",
+    "fullyClaimed": true
+  },
+  "finalBalances": {
+    "savingsRaw": "2000000",
+    "reserveRaw": "0",
+    "demoAssetRaw": "24000000000000000000"
+  }
+}

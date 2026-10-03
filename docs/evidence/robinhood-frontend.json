@@ -1,0 +1,25 @@
+{
+  "scope": "Unauthenticated frontend deployment only; not live payment evidence",
+  "origin": "https://ownpay.online",
+  "httpCheckedAt": "2026-10-03T11:27:13.625Z",
+  "routes": [
+    { "path": "/robinhood", "status": 200, "staticAssetsChecked": 22 },
+    { "path": "/", "status": 200, "staticAssetsChecked": 21 },
+    { "path": "/app", "status": 200, "staticAssetsChecked": 26 },
+    { "path": "/pay", "status": 200, "staticAssetsChecked": 24 },
+    { "path": "/portfolio", "status": 200, "staticAssetsChecked": 24 },
+    { "path": "/automation", "status": 200, "staticAssetsChecked": 22 }
+  ],
+  "testnetStatus": { "path": "/api/robinhood/status", "status": 503, "reason": "Contracts not deployed/configured" },
+  "processCheckedAt": "2026-10-03T11:28:55.763Z",
+  "web": {
+    "status": "online",
+    "script": "/opt/ownpay/releases/robinhood-20261003/web/.next-robinhood-20261003/standalone/server.js",
+    "buildId": "ArLFuG6R6Ga_N_k1Q1QPn"
+  },
+  "baseAgent": { "status": "online", "pid": 2144234, "restartedByThisDeployment": false },
+  "startupPersistence": "Saved to /root/.pm2/dump.pm2 after explicit user approval on 2026-10-03; reboot recovery not tested",
+  "authenticatedWalletExecutionVerified": false,
+  "liveTestnetPaymentVerified": false,
+  "sponsoredOperationVerified": false
+}

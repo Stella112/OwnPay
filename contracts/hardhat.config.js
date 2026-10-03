@@ -12,11 +12,17 @@ module.exports = {
     version: "0.8.24",
     settings: {
       optimizer: { enabled: true, runs: 200 },
+      viaIR: true,
       evmVersion: "cancun",
     },
   },
   networks: {
     hardhat: {},
+    robinhoodTestnet: {
+      url: process.env.ROBINHOOD_TESTNET_RPC_URL || "https://rpc.testnet.chain.robinhood.com",
+      chainId: 46630,
+      accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
+    },
     // Base mainnet — chainId 8453. Requires DEPLOYER_PRIVATE_KEY in .env to deploy.
     base: {
       url: BASE_RPC_URL,

@@ -40,6 +40,7 @@ export type OwnershipRuleCandidate = {
   max_per_payment: string;
   max_daily?: string;
   max_monthly: string;
+  slippage_bps?: number;
 };
 
 export const OWNERSHIP_RULE_JSON_SCHEMA = {
@@ -53,6 +54,7 @@ export const OWNERSHIP_RULE_JSON_SCHEMA = {
   max_per_payment: { type: "string" },
     max_daily: { type: "string" },
     max_monthly: { type: "string" },
+    slippage_bps: { type: "integer", minimum: 0, maximum: 1000 },
   },
   required: ["trigger", "minimum_payment", "allocation_percent", "allocations", "max_per_payment", "max_monthly"],
 } as const;
@@ -89,6 +91,8 @@ export function validateOwnershipRuleCandidate(candidate: unknown, walletAddress
     return { assetSymbol, assetAddress: asset.address, weightBps: decimalToBps(allocation.weight_percent, `${assetSymbol} weight`) };
   });
   if (allocations.reduce((sum, allocation) => sum + allocation.weightBps, 0) !== RULE_BPS) throw new Error("Stock allocation weights must total 100%.");
+  const slippageBps = value.slippage_bps ?? 0;
+  if (!Number.isInteger(slippageBps) || slippageBps < 0 || slippageBps > 1000) throw new Error("Slippage must be between 0 and 1000 basis points.");
   return {
     walletAddress,
     enabled: false,
@@ -100,7 +104,7 @@ export function validateOwnershipRuleCandidate(candidate: unknown, walletAddress
     maxPerPaymentRaw: usdcToRaw(value.max_per_payment, "Maximum per payment"),
     maxDailyRaw: usdcToRaw(value.max_daily ?? value.max_per_payment, "Daily limit"),
     maxMonthlyRaw: usdcToRaw(value.max_monthly, "Monthly limit"),
-    slippageBps: 0,
+    slippageBps,
     version: 1,
   };
 }

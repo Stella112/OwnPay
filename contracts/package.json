@@ -6,6 +6,11 @@
   "scripts": {
     "compile": "hardhat compile",
     "test": "hardhat test",
+    "verify:robinhood": "hardhat run scripts/verify-robinhood.js --network robinhoodTestnet",
+    "deploy:robinhood": "hardhat run scripts/deploy-robinhood.js --network robinhoodTestnet",
+    "demo:robinhood": "hardhat run scripts/demo-robinhood.js --network robinhoodTestnet",
+    "policy:robinhood": "hardhat run scripts/policy-robinhood.js --network robinhoodTestnet",
+    "simulate:robinhood": "hardhat run scripts/simulate-robinhood.js --network robinhoodTestnet",
     "deploy:base": "hardhat run scripts/deploy.js --network base",
     "verify": "hardhat verify --network base"
   },
