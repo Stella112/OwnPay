@@ -8,6 +8,7 @@ import { intentDomain, intentTypes, ownRulesAbi, robinhoodTestnet, TEST_USDG } f
 import { rhVestingAbi } from '@/lib/robinhood-vesting';
 import { createRobinhoodKernel } from '@/lib/robinhood-kernel';
 import { OwnPayIcon } from '@/components/OwnPayIcon';
+import { RobinhoodStocks } from '@/components/RobinhoodStocks';
 import styles from './RobinhoodWorkbench.module.css';
 
 type Snapshot = {
@@ -85,7 +86,7 @@ function ExternalWorkbench() {
 }
 
 function Workbench({ owner: signerOwner, getSigner, auth }: { owner?: Address; getSigner: () => Promise<WalletClient>; auth: React.ReactNode }) {
-  const [view, setView] = useState<'overview' | 'automation' | 'pay' | 'activity'>('overview');
+  const [view, setView] = useState<'overview' | 'automation' | 'pay' | 'stocks' | 'activity'>('overview');
   const [kernel, setKernel] = useState<Awaited<ReturnType<typeof createRobinhoodKernel>> | null>(null);
   const [kernelSigner, setKernelSigner] = useState<Address>();
   const activeKernel = signerOwner && kernelSigner === signerOwner ? kernel : null;
@@ -141,6 +142,16 @@ function Workbench({ owner: signerOwner, getSigner, auth }: { owner?: Address; g
     if (!receipt.success) throw new Error('Sponsored user operation failed.');
     await confirmed(receipt.receipt.transactionHash);
   }
+  /** Smart account: one batched (sponsorable) user operation. Wallet: sequential, each confirmed. */
+  async function sendCalls(calls: { to: Address; data: Hex }[]) {
+    if (!owner) throw new Error('Sign in first.');
+    if (activeKernel) { await sendKernel(calls); return; }
+    const signer = await getSigner();
+    for (const c of calls) {
+      await chain.call({ account: owner, to: c.to, data: c.data }); // surface reverts before signing
+      await confirmed(await signer.sendTransaction({ account: owner, chain: robinhoodTestnet, to: c.to, data: c.data }));
+    }
+  }
   function ruleData() {
     const savingsBps = Number(saved) * 100, ownershipBps = Number(owned) * 100;
     if (!Number.isInteger(savingsBps) || !Number.isInteger(ownershipBps) || savingsBps < 0 || ownershipBps < 0 || savingsBps + ownershipBps > 10000) throw new Error('Savings and ownership must total no more than 100%.');
@@ -194,7 +205,7 @@ function Workbench({ owner: signerOwner, getSigner, auth }: { owner?: Address; g
   const accountExists = !!snapshot?.account && snapshot.account !== zeroAddress;
   const sections = [
     { id: 'overview', label: 'Overview' }, { id: 'automation', label: 'Automation' },
-    { id: 'pay', label: 'Pay' }, { id: 'activity', label: 'Activity' },
+    { id: 'pay', label: 'Pay' }, { id: 'stocks', label: 'Stocks' }, { id: 'activity', label: 'Activity' },
   ] as const;
   const service = snapshot?.agentService;
   const serviceLabel = service?.state === 'online' ? 'Worker online' : service?.state === 'degraded' ? 'Worker needs attention' : service?.state === 'stale' ? 'Worker heartbeat is stale' : 'Worker not reporting';
@@ -282,6 +293,7 @@ function Workbench({ owner: signerOwner, getSigner, auth }: { owner?: Address; g
         </article>
       </div>}
 
+      {view === 'stocks' && <RobinhoodStocks owner={owner} disabled={disabled} run={run} sendCalls={sendCalls} />}
       {view === 'activity' && <div className={styles.panelGrid}>
         <article className={styles.panel}>
           <div className={styles.panelHeading}><div><p className="eyebrow">Onchain history</p><h2>Payment receipts</h2></div><span className="pill pill-muted">{snapshot?.receipts?.length ?? 0} loaded</span></div>
