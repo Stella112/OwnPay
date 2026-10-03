@@ -1,0 +1,49 @@
+{
+  "chainId": 46630,
+  "kernelAccount": "0x2D450F6b3a2b408346c7905523049594b8fc913F",
+  "recipient": "0x1f42DA83bCDa01217112F330cED1d7c315C76A9c",
+  "ops": [
+    {
+      "label": "approve TSLA + createGrant (Pay)",
+      "ok": true,
+      "success": true,
+      "actualGasCostWei": "0",
+      "tx": "0x8eace20277cb5d5a0a84b8d8ed4a9cb2445701678647b876521ab94836497acb",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x8eace20277cb5d5a0a84b8d8ed4a9cb2445701678647b876521ab94836497acb"
+    },
+    {
+      "label": "tipWithMemo (Tip)",
+      "ok": true,
+      "success": true,
+      "actualGasCostWei": "0",
+      "tx": "0xb53e284f8fcbcbbccd7494c234bf179a7a0a54964ed7864dd725aae562583c5f",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xb53e284f8fcbcbbccd7494c234bf179a7a0a54964ed7864dd725aae562583c5f"
+    },
+    {
+      "label": "revoke",
+      "ok": true,
+      "success": true,
+      "actualGasCostWei": "0",
+      "tx": "0xa3fcf07cc307ced8840fd9678ea10ebad9973b626d55c3abc5ee212dd75db177",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xa3fcf07cc307ced8840fd9678ea10ebad9973b626d55c3abc5ee212dd75db177"
+    },
+    {
+      "label": "release",
+      "ok": true,
+      "success": true,
+      "actualGasCostWei": "0",
+      "tx": "0x39d99609e088d40b84a94c3eb59817c9a899054c9c338e1411d1c68ef7c3b1e2",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x39d99609e088d40b84a94c3eb59817c9a899054c9c338e1411d1c68ef7c3b1e2"
+    }
+  ],
+  "funding": {
+    "tx": "0x2b2fa992b0d6ac6b8fc565d7c16b637e93cec9e544c2d337bff7db5c112856a7",
+    "tsla": "0.02",
+    "eth": "0"
+  },
+  "grantId": "6",
+  "accountEthAfter": "0",
+  "recipientTsla": "10516666666666666",
+  "allPassed": true,
+  "checkedAt": "2026-10-03T23:48:52.289Z"
+}
