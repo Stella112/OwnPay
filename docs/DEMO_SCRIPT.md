@@ -11,7 +11,7 @@ Site: https://ownpay.online/robinhood
 2. **Rules:** savings 10, ownership 20, max 100, daily 500. Weights: **TSLA 1, AMZN 1**. Save rule.
 3. **Agent:** choose **7 days** → Authorize.
 4. **Home:** make sure the wallet shows at least ~10 USDG.
-5. Have a second address ready to paste for "Pay someone":
+5. Have a second address ready to paste for the stock gift:
    `0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19`
 6. Dismiss any red banners. Close other tabs, zoom the browser to 110%.
 7. **Market hours matter for the stock-buying moment:**
@@ -35,7 +35,7 @@ Things to never say: "real money", "audited", "KYC", "Robinhood partnership", "g
 > "I signed in with just my email. OwnPay gave me a smart account, and every action is gas-sponsored. This wallet holds zero ETH, and I never need any."
 
 ### 0:35–1:00 · The rule
-**Screen:** Rules page. Show the split (80/10/10 or 70/10/20) and the TSLA / AMZN weights with live prices.
+**Screen:** Rules page. Show the split (70% spendable / 10% savings / 20% ownership) and the TSLA / AMZN weights with live prices.
 **Say:**
 > "Here's my rule. Seventy percent stays spendable, ten goes to savings, twenty becomes ownership. And I choose what I own: half Tesla, half Amazon, priced from the real market, with a live open-or-closed status. Up to five stocks."
 
