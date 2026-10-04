@@ -44,6 +44,31 @@ async function readApiJson(response: Response): Promise<Record<string, unknown> 
   return data;
 }
 
+/**
+ * Turn contract reverts / bundler errors into one clear sentence. Raw RPC errors
+ * (calldata dumps) are never shown to users; unknown errors keep a short form.
+ */
+function friendlyError(e: unknown): string {
+  const err = e as { shortMessage?: string; details?: string; message?: string };
+  const text = [err.details, err.shortMessage, err.message].filter(Boolean).join(' | ');
+  const known: [RegExp, string][] = [
+    [/compliance denied/i, 'Payer or recipient is not approved by the test compliance policy (or the approval expired). Ask the policy admin to approve both addresses.'],
+    [/payment policy denied/i, 'The recipient has no enabled OwnRule, or this amount is above their maximum payment.'],
+    [/daily limit/i, "This payment would exceed the recipient's daily limit."],
+    [/agent denied/i, 'The agent is not authorized for this account (expired, revoked, or the rule changed).'],
+    [/did not match any gas sponsoring policies/i, 'This action is not covered by the gas sponsorship policy.'],
+    [/AA21|didn.t pay prefund|insufficient funds/i, 'Not enough testnet ETH for gas, and this action was not sponsored.'],
+    [/user rejected|denied transaction|rejected the request/i, 'You rejected the request.'],
+    [/allowance/i, 'Token approval is missing or too low.'],
+    [/nothing to release/i, 'Nothing is claimable yet.'],
+  ];
+  for (const [re, msg] of known) if (re.test(text)) return msg;
+  const reason = text.match(/reason: ([^|]+?)(?: Version:|\||$)/i)?.[1]?.trim();
+  if (reason) return `Transaction rejected: ${reason}.`;
+  const first = (err.shortMessage || err.message || 'Transaction failed.').split('\n')[0];
+  return first.length > 200 ? first.slice(0, 200) + '…' : first;
+}
+
 /** Read-only GET with a single retry for transient gateway errors. Never used for writes. */
 async function getStatusJson(url: string) {
   for (let attempt = 0; ; attempt++) {
@@ -109,7 +134,7 @@ function Workbench({ owner: signerOwner, getSigner, auth }: { owner?: Address; g
   }, [owner]);
   useEffect(() => { setLoaded(null); setHash(undefined); void refresh(); }, [refresh]);
   useEffect(() => { const q = new URLSearchParams(window.location.search); setRecipient(q.get('to') || ''); setAmount(q.get('amount') || '100'); }, []);
-  async function run(action: () => Promise<void>) { setBusy(true); setError(''); setHash(undefined); try { await action(); await refresh(); } catch(e) { setError(e instanceof Error ? e.message : 'Transaction failed.'); } finally { setBusy(false); } }
+  async function run(action: () => Promise<void>) { setBusy(true); setError(''); setHash(undefined); try { await action(); await refresh(); } catch(e) { setError(friendlyError(e)); } finally { setBusy(false); } }
   async function signed(action: number, data: Hex) {
     if (!owner || !snapshot) throw new Error('Sign in and wait for the deployed contracts.');
     if (activeKernel) {
@@ -279,7 +304,7 @@ function Workbench({ owner: signerOwner, getSigner, auth }: { owner?: Address; g
         <article className={styles.panel}>
           <div className={styles.panelHeading}><div><p className="eyebrow">Send test funds</p><h2>Pay with USDG</h2></div><span className="pill pill-muted">Robinhood testnet</span></div>
           <div className={styles.formStack}>{input('Recipient owner wallet', recipient, setRecipient, 'Paste the recipient’s Robinhood testnet owner address.')}{input('Amount · test USDG', amount, setAmount)}{input('Note', memo, setMemo, 'Encrypted in this browser before submission; its commitment is public.')}</div>
-          <div className={styles.notice}>The first payment may require an exact USDG approval. Payment and approval currently require testnet ETH; rule sponsorship does not cover token approvals.</div>
+          <div className={styles.notice}>{activeKernel ? 'Smart account mode: the USDG approval and payment are batched into one gas-sponsored operation. Payer and recipient must both be approved by the test compliance policy.' : 'Signer wallet mode: the first payment may need an exact USDG approval, and both transactions need testnet ETH. Switch to the smart account (Overview) for gas sponsorship.'}</div>
           <button className="btn btn-primary" disabled={disabled} onClick={() => void run(pay)}>Review in wallet and pay</button>
         </article>
         <article className={styles.panel}>
