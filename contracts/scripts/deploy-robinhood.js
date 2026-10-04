@@ -16,7 +16,7 @@ async function main() {
   if (checkpoint.ownRules) {
     if (await ethers.provider.getCode(checkpoint.ownRules) === '0x') throw new Error('Checkpoint router has no bytecode');
     router = await ethers.getContractAt('OwnRules', checkpoint.ownRules);
-    if ((await router.usdg()).toLowerCase() !== USDG.toLowerCase() || (await router.policyAdmin()).toLowerCase() !== deployer.address.toLowerCase()) throw new Error('Checkpoint router configuration mismatch');
+    if ((await router.usdg()).toLowerCase() !== USDG.toLowerCase() || (await router.adapterAdmin()).toLowerCase() !== deployer.address.toLowerCase()) throw new Error('Checkpoint router configuration mismatch');
   } else {
     router = await (await ethers.getContractFactory('OwnRules')).deploy(USDG); await router.waitForDeployment();
     checkpoint.ownRules = await router.getAddress(); checkpoint.routerTx = router.deploymentTransaction().hash;

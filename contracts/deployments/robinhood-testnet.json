@@ -1,17 +1,17 @@
 {
   "chainId": 46630,
   "usdg": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
-  "ownRules": "0x8173e2f3D59A633eEf99Dfd926f5Bc0a1D3922a9",
-  "vesting": "0x5B08DA1652A88BD80DB2d141FDba71FeCAe05012",
-  "demoAdapter": "0xACdF5260e2d89Cd29c3b09a32EEf3Ae6aB679081",
-  "demoAsset": "0x3B35F85c74CeC2fF39b58bdAd858EbC8a0d7AD84",
-  "deployedAt": "2026-10-03T12:13:21.727Z",
-  "deploymentBlock": 128143748,
+  "ownRules": "0x5EBe85fF24699925be0054c96ef7e8bb444FB1DB",
+  "vesting": "0x9E726C80f22F057A365d2F482f72180b5dFCd4e1",
+  "demoAdapter": "0xfb2C898DB77D6FECba6b6A9e4Cd8A0869F166734",
+  "demoAsset": "0x6BD8c0B70953A547119a7596BCf985f00389D60f",
+  "deployedAt": "2026-10-04T10:10:04.258Z",
+  "deploymentBlock": 128647610,
   "deployer": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
   "transactions": {
-    "ownRules": "0xcad79d0934c77777ebc37fb380c6e34bf26247744c8a0d2be00e8e944e4493d8",
-    "demoAdapter": "0x7a9aee39526f435e4dbc9e1ccb44bfd81f658396285e6d750bcdcafc2e82f51f",
-    "adapterApproval": "0x8f8b802d9007ff852680b5f30cf6d370416443866f1742b79256130499b18a81"
+    "ownRules": "0x01ee2f314cbc5545947c9dac62510d195d5c615b12ec5d4f6d5c1986ba4e4a72",
+    "demoAdapter": "0x00a752dcf13df441bcef5e4bc2e91f165791a6bf6e3f3bd88377b70dcc8be0f9",
+    "adapterApproval": "0x85fadf5dae80b1db0a6de7f04d63f3ae0ec3d18bb4960395ad6cf7334ec5818f"
   },
   "demoAssetDisclaimer": "DEMO-OWN has no value; not a Robinhood Stock Token or real equity."
 }

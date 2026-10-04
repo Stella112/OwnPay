@@ -79,7 +79,9 @@ contract OwnAssetVesting {
 
 /// @notice Financial split router: spendable goes to owner, savings stays redeemable
 /// in this contract, ownership buys an explicitly allowed asset or stays as USDG reserve.
-/// Compliance is a locally administered test policy, not a KYC/sanctions provider.
+/// Compliance is recipient-programmed: each owner sets who may pay them and on what
+/// terms (allowlist, blocklist, required memo, per-sender daily cap). There is no
+/// administrator in the payment path. This is not KYC or sanctions screening.
 contract OwnRules {
     struct Rule {
         uint16 savingsBps;
@@ -92,15 +94,23 @@ contract OwnRules {
         bool enabled;
     }
     struct Delegation { address agent; uint64 expires; uint64 ruleVersion; }
-    struct Compliance { uint64 expires; bool blocked; }
+    /// Recipient-programmed payment policy; only the recipient can change it.
+    struct Policy { bool allowlistOnly; bool requireMemo; uint128 perSenderDailyCap; }
+    uint8 public constant SENDER_UNSET = 0;
+    uint8 public constant SENDER_ALLOWED = 1;
+    uint8 public constant SENDER_BLOCKED = 2;
     address public immutable usdg;
-    address public immutable policyAdmin;
+    /// Approves ownership adapters (swap venues) only. Has no say over who pays whom.
+    address public immutable adapterAdmin;
     OwnAssetVesting public immutable vesting;
     mapping(address => uint64) public vestingSeconds;
     mapping(address => address) public accounts;
     mapping(address => Rule) public rules;
     mapping(address => Delegation) public delegations;
-    mapping(address => Compliance) public compliance;
+    mapping(address => Policy) public policies;
+    mapping(address => mapping(address => uint8)) public senderStatus; // owner => sender => status
+    mapping(address => mapping(address => uint256)) public senderSpentDay;
+    mapping(address => mapping(address => uint256)) public senderSpentToday;
     mapping(address => bool) public allowedAdapters;
     mapping(address => uint256) public savings;
     mapping(address => uint256) public ownershipReserve;
@@ -111,11 +121,12 @@ contract OwnRules {
     uint256 private lock = 1;
     bytes32 private constant INTENT_TYPEHASH = keccak256("Intent(address owner,uint8 action,bytes32 dataHash,uint256 nonce,uint256 deadline)");
     modifier guarded() { require(lock == 1, "reentrant"); lock = 2; _; lock = 1; }
-    modifier admin() { require(msg.sender == policyAdmin, "not policy admin"); _; }
+    modifier admin() { require(msg.sender == adapterAdmin, "not adapter admin"); _; }
     event AccountCreated(address indexed owner, address indexed account);
     event RuleSaved(address indexed owner, uint64 version, uint16 savingsBps, uint16 ownershipBps, address adapter);
     event AgentChanged(address indexed owner, address agent, uint64 expires, uint64 version);
-    event ComplianceChanged(address indexed account, uint64 expires, bool blocked);
+    event PolicySaved(address indexed owner, bool allowlistOnly, bool requireMemo, uint128 perSenderDailyCap);
+    event SenderStatusChanged(address indexed owner, address indexed sender, uint8 status);
     event AdapterChanged(address indexed adapter, bool enabled);
     event PaymentReceipt(uint256 indexed id, address indexed owner, address indexed payer, uint256 amount,
         uint256 spendable, uint256 saved, uint256 ownership, uint256 assetOut, uint64 ruleVersion, bytes32 metadataCommitment);
@@ -124,13 +135,21 @@ contract OwnRules {
 
     constructor(address usdg_) {
         require(usdg_.code.length > 0, "USDG has no code");
-        usdg = usdg_; policyAdmin = msg.sender;
+        usdg = usdg_; adapterAdmin = msg.sender;
         vesting = new OwnAssetVesting();
     }
-    function setCompliance(address account, uint64 expires, bool blocked) external admin {
-        require(account != address(0), "zero account");
-        compliance[account] = Compliance(expires, blocked);
-        emit ComplianceChanged(account, expires, blocked);
+    function setPolicy(bool allowlistOnly, bool requireMemo, uint128 perSenderDailyCap) external guarded {
+        _setPolicy(msg.sender, allowlistOnly, requireMemo, perSenderDailyCap);
+    }
+    function _setPolicy(address owner, bool allowlistOnly, bool requireMemo, uint128 perSenderDailyCap) internal {
+        policies[owner] = Policy(allowlistOnly, requireMemo, perSenderDailyCap);
+        emit PolicySaved(owner, allowlistOnly, requireMemo, perSenderDailyCap);
+    }
+    function setSender(address sender, uint8 status) external guarded { _setSender(msg.sender, sender, status); }
+    function _setSender(address owner, address sender, uint8 status) internal {
+        require(sender != address(0) && sender != owner && status <= SENDER_BLOCKED, "invalid sender status");
+        senderStatus[owner][sender] = status;
+        emit SenderStatusChanged(owner, sender, status);
     }
     function setAdapter(address adapter, bool enabled) external admin {
         require(adapter.code.length > 0, "adapter has no code");
@@ -164,9 +183,23 @@ contract OwnRules {
         delegations[owner] = Delegation(agent, expires, rules[owner].version);
         emit AgentChanged(owner, agent, expires, rules[owner].version);
     }
-    function _eligible(address account) internal view {
-        Compliance memory c = compliance[account];
-        require(!c.blocked && c.expires >= block.timestamp, "compliance denied");
+    /// Enforce the recipient's own policy. `payer == address(0)` is a direct deposit
+    /// whose sender cannot be verified onchain: allowlist-only recipients reject it
+    /// (fail closed); the owner can still recover it from the receive account.
+    function _checkPolicy(address owner, address payer, uint256 amount, bytes32 memo) internal {
+        Policy memory p = policies[owner];
+        if (payer == owner) return;
+        if (payer == address(0)) { require(!p.allowlistOnly, "policy: sender unverifiable"); return; }
+        uint8 status = senderStatus[owner][payer];
+        require(status != SENDER_BLOCKED, "policy: sender blocked");
+        require(!p.allowlistOnly || status == SENDER_ALLOWED, "policy: sender not allowlisted");
+        require(!p.requireMemo || memo != bytes32(0), "policy: memo required");
+        if (p.perSenderDailyCap > 0) {
+            uint256 today = block.timestamp / 1 days;
+            if (senderSpentDay[owner][payer] != today) { senderSpentDay[owner][payer] = today; senderSpentToday[owner][payer] = 0; }
+            senderSpentToday[owner][payer] += amount;
+            require(senderSpentToday[owner][payer] <= p.perSenderDailyCap, "policy: sender daily cap");
+        }
     }
     function setVestingSeconds(uint64 seconds_) external guarded { _vesting(msg.sender, seconds_); }
     function _vesting(address owner, uint64 seconds_) internal {
@@ -176,7 +209,6 @@ contract OwnRules {
         delete delegations[owner]; emit VestingChanged(owner, seconds_, rules[owner].version);
     }
     function pay(address owner, uint256 amount, bytes32 metadataCommitment) external guarded {
-        _eligible(msg.sender);
         uint256 beforeBalance = IRuleToken(usdg).balanceOf(address(this));
         RuleToken.pull(usdg, msg.sender, address(this), amount);
         require(IRuleToken(usdg).balanceOf(address(this)) == beforeBalance + amount, "unsupported token behavior");
@@ -197,7 +229,7 @@ contract OwnRules {
         _split(owner, address(0), amount, metadataCommitment);
     }
     function _split(address owner, address payer, uint256 amount, bytes32 memo) internal {
-        _eligible(owner);
+        _checkPolicy(owner, payer, amount, memo);
         Rule memory r = rules[owner];
         require(r.enabled && amount > 0 && amount <= r.maxPayment, "payment policy denied");
         uint256 today = block.timestamp / 1 days;
@@ -226,7 +258,7 @@ contract OwnRules {
     function withdraw(bool ownership, uint256 amount) external guarded { _withdraw(msg.sender, ownership, amount); }
     function _withdraw(address owner, bool ownership, uint256 amount) internal {
         require(amount > 0, "zero withdrawal");
-        // Withdrawals remain available even when allocation compliance is revoked.
+        // Withdrawals never depend on any payment policy.
         if (ownership) { ownershipReserve[owner] -= amount; } else { savings[owner] -= amount; }
         RuleToken.send(usdg, owner, amount); emit Withdrawal(owner, ownership, amount);
     }
@@ -256,6 +288,8 @@ contract OwnRules {
         } else if (action == 2) { (address agent, uint64 expiry) = abi.decode(data, (address, uint64)); _delegate(owner, agent, expiry); }
         else if (action == 3) { (bool owned, uint256 amount) = abi.decode(data, (bool, uint256)); _withdraw(owner, owned, amount); }
         else if (action == 4) { _vesting(owner, abi.decode(data, (uint64))); }
+        else if (action == 5) { (bool allowlistOnly, bool requireMemo, uint128 cap) = abi.decode(data, (bool, bool, uint128)); _setPolicy(owner, allowlistOnly, requireMemo, cap); }
+        else if (action == 6) { (address sender, uint8 status) = abi.decode(data, (address, uint8)); _setSender(owner, sender, status); }
         else { revert("unknown action"); }
     }
 }

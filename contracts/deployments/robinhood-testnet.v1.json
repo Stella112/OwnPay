@@ -1,0 +1,17 @@
+{
+  "chainId": 46630,
+  "usdg": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
+  "ownRules": "0x8173e2f3D59A633eEf99Dfd926f5Bc0a1D3922a9",
+  "vesting": "0x5B08DA1652A88BD80DB2d141FDba71FeCAe05012",
+  "demoAdapter": "0xACdF5260e2d89Cd29c3b09a32EEf3Ae6aB679081",
+  "demoAsset": "0x3B35F85c74CeC2fF39b58bdAd858EbC8a0d7AD84",
+  "deployedAt": "2026-10-03T12:13:21.727Z",
+  "deploymentBlock": 128143748,
+  "deployer": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "transactions": {
+    "ownRules": "0xcad79d0934c77777ebc37fb380c6e34bf26247744c8a0d2be00e8e944e4493d8",
+    "demoAdapter": "0x7a9aee39526f435e4dbc9e1ccb44bfd81f658396285e6d750bcdcafc2e82f51f",
+    "adapterApproval": "0x8f8b802d9007ff852680b5f30cf6d370416443866f1742b79256130499b18a81"
+  },
+  "demoAssetDisclaimer": "DEMO-OWN has no value; not a Robinhood Stock Token or real equity."
+}

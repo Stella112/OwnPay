@@ -1,0 +1,100 @@
+{
+  "chainId": 46630,
+  "ownRules": "0x5EBe85fF24699925be0054c96ef7e8bb444FB1DB",
+  "recipient": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+  "payer": "0xE9bcB32310Bcc8e7aF7F9d18d899E6EF08FCBd98",
+  "steps": [
+    {
+      "label": "fund payer with test ETH",
+      "tx": "0x4c124cdcf59e02a9cb43954f66a89e318dce48db7c6b622e301dcc39d4d066dd",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x4c124cdcf59e02a9cb43954f66a89e318dce48db7c6b622e301dcc39d4d066dd"
+    },
+    {
+      "label": "fund payer with 6 test USDG",
+      "tx": "0x0975140aef17f7ff50f630265ace7dfde1de1f73cbafdfedc40e1f5f149d9721",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x0975140aef17f7ff50f630265ace7dfde1de1f73cbafdfedc40e1f5f149d9721"
+    },
+    {
+      "label": "payer approves OwnRules",
+      "tx": "0x0629743b2d26fb6da38f20fdea19ba4ae3502bf67f9e627198a4473df111bf3a",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x0629743b2d26fb6da38f20fdea19ba4ae3502bf67f9e627198a4473df111bf3a"
+    },
+    {
+      "label": "recipient saves 70/10/20 rule",
+      "tx": "0xb59b8ec968658cdd0cd7452685bb9bd68eae04a50f99104cc5053e2391a4a4fa",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xb59b8ec968658cdd0cd7452685bb9bd68eae04a50f99104cc5053e2391a4a4fa"
+    },
+    {
+      "label": "open policy: unknown payer pays 1 USDG (no admin approval)",
+      "tx": "0xb01f40e5fb130f1750ef4bdd1bbf24139313e623065282cc5d23dd2346cec04d",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xb01f40e5fb130f1750ef4bdd1bbf24139313e623065282cc5d23dd2346cec04d"
+    },
+    {
+      "label": "recipient blocks payer",
+      "tx": "0x52e4b2ca320271324a3a0269320152d5bebdc67a0fff99ef9e7c7a17bfb7e211",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x52e4b2ca320271324a3a0269320152d5bebdc67a0fff99ef9e7c7a17bfb7e211"
+    },
+    {
+      "label": "recipient unblocks payer + turns on allowlist-only",
+      "tx": "0xc6eaf8f00c1408cc400126b2cb1a668a52ffa9d224a6d96ffc339a4d5af09db8",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xc6eaf8f00c1408cc400126b2cb1a668a52ffa9d224a6d96ffc339a4d5af09db8"
+    },
+    {
+      "label": "recipient sets allowlist-only",
+      "tx": "0x702175a6894c404352aa3a243f08817a30e64d1f99414639b9b4edef6f57fe30",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x702175a6894c404352aa3a243f08817a30e64d1f99414639b9b4edef6f57fe30"
+    },
+    {
+      "label": "recipient allowlists payer",
+      "tx": "0x5dd025d73d1db39f501ebb1eb987ef135372e97843cd9fa2ebc8a999e7429372",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x5dd025d73d1db39f501ebb1eb987ef135372e97843cd9fa2ebc8a999e7429372"
+    },
+    {
+      "label": "allowlisted payer pays 1 USDG",
+      "tx": "0x9073ff95907f41b4cdcc23b0abc298f87c228d9363fcf5fcfffd3e8963e1d357",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x9073ff95907f41b4cdcc23b0abc298f87c228d9363fcf5fcfffd3e8963e1d357"
+    },
+    {
+      "label": "payer sends 1 USDG straight to recipient's receive account",
+      "tx": "0xf5f715a2d4cc81fb1ae77a34883207d1b00b397bf3b8ef5cccc0b6a71cc09a2d",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xf5f715a2d4cc81fb1ae77a34883207d1b00b397bf3b8ef5cccc0b6a71cc09a2d"
+    },
+    {
+      "label": "recipient recovers the unprocessed deposit",
+      "tx": "0x5bd50c583868275d8f676d46999791aba61f815d6302903a55685c0bba0eb7b0",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x5bd50c583868275d8f676d46999791aba61f815d6302903a55685c0bba0eb7b0"
+    },
+    {
+      "label": "recipient requires a payment note",
+      "tx": "0x7f02d93657bb79ed1caeb1d275bb3309c48d8ea2bb0de39113f49f4bd1ccefab",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x7f02d93657bb79ed1caeb1d275bb3309c48d8ea2bb0de39113f49f4bd1ccefab"
+    },
+    {
+      "label": "recipient sets per-sender daily cap of 1.5 USDG",
+      "tx": "0xd8bdf0b6bdcf013c2776d63479eb49ea8001b562bcafc829091bca6a72865088",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xd8bdf0b6bdcf013c2776d63479eb49ea8001b562bcafc829091bca6a72865088"
+    },
+    {
+      "label": "payer pays 1 USDG (within cap)",
+      "tx": "0x0b4deedf80f1454b914e24ed86b232ef5c5bc13c4904b6944f5bab7838acd3d0",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x0b4deedf80f1454b914e24ed86b232ef5c5bc13c4904b6944f5bab7838acd3d0"
+    },
+    {
+      "label": "recipient resets to open policy",
+      "tx": "0xd4fc3314830d31040e36a1a2ceb9958598ffb9c655e89dcd4e776dcdfa400bc8",
+      "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0xd4fc3314830d31040e36a1a2ceb9958598ffb9c655e89dcd4e776dcdfa400bc8"
+    }
+  ],
+  "checks": {
+    "noAdminFunctionExists": true,
+    "openPaymentSplit": true,
+    "blockedSenderRejected": true,
+    "notAllowlistedRejected": true,
+    "allowlistedAccepted": true,
+    "directDepositFailsClosed": true,
+    "missingMemoRejected": true,
+    "senderCapRejected": true
+  },
+  "allChecksPassed": true,
+  "checkedAt": "2026-10-04T10:26:10.622Z"
+}

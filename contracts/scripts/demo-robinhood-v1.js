@@ -1,10 +1,12 @@
+// v1 ONLY: targets the superseded OwnRules v1 (admin test-compliance) deployment recorded in
+// deployments/robinhood-testnet.v1.json and docs/evidence/robinhood-demo.json. Not runnable against v2.
 const { ethers } = require('hardhat');
 const fs = require('node:fs');
 const path = require('node:path');
 const { verify, USDG } = require('./verify-robinhood');
 async function main() {
   await verify();
-  const manifestPath = path.join(__dirname, '../deployments/robinhood-testnet.json');
+  const manifestPath = path.join(__dirname, '../deployments/robinhood-testnet.v1.json');
   if (!fs.existsSync(manifestPath)) throw new Error('BLOCKED: Robinhood OwnRules deployment manifest not present.');
   const manifest = JSON.parse(fs.readFileSync(manifestPath));
   const [owner] = await ethers.getSigners();

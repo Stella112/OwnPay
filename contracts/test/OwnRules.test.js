@@ -8,8 +8,6 @@ async function fixture() {
   const router = await (await ethers.getContractFactory('OwnRules')).deploy(await token.getAddress());
   const adapter = await (await ethers.getContractFactory('DemoOwnershipAdapter')).deploy(await router.getAddress(), await token.getAddress());
   await router.setAdapter(await adapter.getAddress(), true);
-  const expiry = (await time.latest()) + 86400;
-  for (const who of [owner, payer]) await router.setCompliance(who.address, expiry, false);
   await router.connect(owner).createAccount();
   await router.connect(owner).saveRule(1000, 2000, 100e6, 200e6, ethers.ZeroAddress, 0, true);
   await token.mint(payer.address, 1000e6);
@@ -162,20 +160,67 @@ describe('OwnRules financial and security integration', function () {
     await time.increase(61);
     await expect(f.router.connect(f.agent).processIncoming(f.owner.address, 1, memo)).to.be.revertedWith('agent denied');
   });
-  it('fails closed for unknown or blocked payer and blocked recipient', async () => {
+  it('has no admin compliance gate: anyone can pay an open recipient', async () => {
     const f = await fixture();
-    await expect(f.router.connect(f.attacker).pay(f.owner.address, 1, memo)).to.be.revertedWith('compliance denied');
-    await f.router.setCompliance(f.payer.address, (await time.latest()) + 3600, true);
-    await expect(f.router.connect(f.payer).pay(f.owner.address, 1, memo)).to.be.revertedWith('compliance denied');
-    await f.router.setCompliance(f.payer.address, (await time.latest()) + 3600, false);
-    await f.router.setCompliance(f.owner.address, (await time.latest()) + 3600, true);
-    await expect(f.router.connect(f.payer).pay(f.owner.address, 1, memo)).to.be.revertedWith('compliance denied');
-    expect(await f.token.balanceOf(f.payer.address)).to.equal(1000e6);
+    expect(f.router.setCompliance).to.equal(undefined);
+    await f.token.mint(f.attacker.address, 5e6); await f.token.connect(f.attacker).approve(await f.router.getAddress(), 5e6);
+    await f.router.connect(f.attacker).pay(f.owner.address, 5e6, memo);
+    expect(await f.token.balanceOf(f.owner.address)).to.equal(3.5e6);
   });
-  it('rejects expired compliance and unauthorized policy edits', async () => {
-    const f = await fixture(); await time.increase(86401);
-    await expect(f.router.connect(f.payer).pay(f.owner.address, 1, memo)).to.be.revertedWith('compliance denied');
-    await expect(f.router.connect(f.attacker).setCompliance(f.attacker.address, 9999999999, false)).to.be.revertedWith('not policy admin');
+  it('recipient blocklist rejects a sender and keeps their funds', async () => {
+    const f = await fixture();
+    await expect(f.router.connect(f.owner).setSender(f.payer.address, 2)).to.emit(f.router, 'SenderStatusChanged').withArgs(f.owner.address, f.payer.address, 2);
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 1e6, memo)).to.be.revertedWith('policy: sender blocked');
+    expect(await f.token.balanceOf(f.payer.address)).to.equal(1000e6);
+    await f.router.connect(f.owner).setSender(f.payer.address, 0);
+    await f.router.connect(f.payer).pay(f.owner.address, 1e6, memo);
+  });
+  it('allowlist-only accepts only approved senders and fails closed on unverifiable direct deposits', async () => {
+    const f = await fixture();
+    await expect(f.router.connect(f.owner).setPolicy(true, false, 0)).to.emit(f.router, 'PolicySaved').withArgs(f.owner.address, true, false, 0);
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 1e6, memo)).to.be.revertedWith('policy: sender not allowlisted');
+    await f.router.connect(f.owner).setSender(f.payer.address, 1);
+    await f.router.connect(f.payer).pay(f.owner.address, 1e6, memo);
+    const account = await ethers.getContractAt('OwnReceiveAccount', await f.router.accounts(f.owner.address));
+    await f.token.connect(f.payer).transfer(await account.getAddress(), 5e6);
+    await f.router.connect(f.owner).delegate(f.agent.address, (await time.latest()) + 3600);
+    await expect(f.router.connect(f.agent).processIncoming(f.owner.address, 5e6, memo)).to.be.revertedWith('policy: sender unverifiable');
+    await expect(f.router.connect(f.owner).processIncoming(f.owner.address, 5e6, memo)).to.be.revertedWith('policy: sender unverifiable');
+    expect(await f.token.balanceOf(await account.getAddress())).to.equal(5e6);
+    await account.connect(f.owner).recover(await f.token.getAddress(), 5e6);
+  });
+  it('require-memo rejects payments without a note', async () => {
+    const f = await fixture(); await f.router.connect(f.owner).setPolicy(false, true, 0);
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 1e6, ethers.ZeroHash)).to.be.revertedWith('policy: memo required');
+    await f.router.connect(f.payer).pay(f.owner.address, 1e6, memo);
+  });
+  it('per-sender daily cap limits one sender, not others, and resets next day', async () => {
+    const f = await fixture(); await f.router.connect(f.owner).setPolicy(false, false, 50e6);
+    await f.router.connect(f.payer).pay(f.owner.address, 40e6, memo);
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 20e6, memo)).to.be.revertedWith('policy: sender daily cap');
+    await f.token.mint(f.attacker.address, 20e6); await f.token.connect(f.attacker).approve(await f.router.getAddress(), 20e6);
+    await f.router.connect(f.attacker).pay(f.owner.address, 20e6, memo);
+    await time.increase(86400);
+    await f.router.connect(f.payer).pay(f.owner.address, 20e6, memo);
+  });
+  it('only the recipient controls their policy; invalid sender entries rejected', async () => {
+    const f = await fixture();
+    await f.router.connect(f.attacker).setPolicy(true, true, 1);
+    await f.router.connect(f.attacker).setSender(f.payer.address, 2);
+    await f.router.connect(f.payer).pay(f.owner.address, 1e6, memo); // attacker's settings only affect attacker
+    await expect(f.router.connect(f.owner).setSender(ethers.ZeroAddress, 1)).to.be.revertedWith('invalid sender status');
+    await expect(f.router.connect(f.owner).setSender(f.owner.address, 1)).to.be.revertedWith('invalid sender status');
+    await expect(f.router.connect(f.owner).setSender(f.payer.address, 3)).to.be.revertedWith('invalid sender status');
+    await expect(f.router.connect(f.attacker).setAdapter(f.attacker.address, true)).to.be.revertedWith('not adapter admin');
+  });
+  it('relays signed policy and sender intents (actions 5 and 6)', async () => {
+    const f = await fixture(); const coder = ethers.AbiCoder.defaultAbiCoder();
+    const p = await sign(f, 5, coder.encode(['bool', 'bool', 'uint128'], [false, true, 0]));
+    await f.router.connect(f.attacker).executeSigned(f.owner.address, 5, p.data, p.deadline, p.signature);
+    expect((await f.router.policies(f.owner.address)).requireMemo).to.equal(true);
+    const q = await sign(f, 6, coder.encode(['address', 'uint8'], [f.payer.address, 2]));
+    await f.router.connect(f.attacker).executeSigned(f.owner.address, 6, q.data, q.deadline, q.signature);
+    expect(await f.router.senderStatus(f.owner.address, f.payer.address)).to.equal(2);
   });
   it('rejects invalid split, limits and unapproved adapter', async () => {
     const f = await fixture();
@@ -194,12 +239,11 @@ describe('OwnRules financial and security integration', function () {
     await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo); await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo);
     await expect(f.router.connect(f.payer).pay(f.owner.address, 1, memo)).to.be.revertedWith('daily limit');
     await time.increase(86400);
-    for (const who of [f.owner, f.payer]) await f.router.setCompliance(who.address, (await time.latest()) + 86400, false);
     await f.router.connect(f.payer).pay(f.owner.address, 1, memo);
   });
-  it('withdrawals conserve escrow and cannot exceed balance, even with revoked compliance', async () => {
+  it('withdrawals conserve escrow and cannot exceed balance, regardless of payment policy', async () => {
     const f = await fixture(); await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo);
-    await f.router.setCompliance(f.owner.address, 0, true);
+    await f.router.connect(f.owner).setPolicy(true, true, 1);
     await f.router.connect(f.owner).withdraw(false, 10e6); await f.router.connect(f.owner).withdraw(true, 20e6);
     expect(await f.token.balanceOf(f.owner.address)).to.equal(100e6);
     expect(await f.token.balanceOf(await f.router.getAddress())).to.equal(0);
