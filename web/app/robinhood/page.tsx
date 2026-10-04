@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { encodeFunctionData, erc20Abi, parseUnits, zeroAddress } from 'viem';
 import { ownRulesAbi, TEST_USDG } from '@/lib/robinhood';
-import { useRh } from '@/components/robinhood/session';
+import { rhChain, useRh } from '@/components/robinhood/session';
 import { ActivityList, RhPageHeader, styles, usdg } from '@/components/robinhood/ui';
 
 export default function RobinhoodHome() {
@@ -32,8 +32,11 @@ export default function RobinhoodHome() {
   }
 
   async function processPending() {
-    if (!owner || !snapshot) throw new Error('Sign in first.');
-    await sendCalls([{ to: snapshot.router, data: encodeFunctionData({ abi: ownRulesAbi, functionName: 'processIncoming', args: [owner, BigInt(snapshot.incoming || '0'), await commitment('')] }) }]);
+    if (!owner || !snapshot?.account) throw new Error('Sign in first.');
+    // Read the live balance at click time: the agent may have split it seconds ago.
+    const waiting = await rhChain.readContract({ address: TEST_USDG, abi: erc20Abi, functionName: 'balanceOf', args: [snapshot.account] });
+    if (waiting === 0n) throw new Error('Nothing is waiting: it has already been split (the agent usually does this within seconds).');
+    await sendCalls([{ to: snapshot.router, data: encodeFunctionData({ abi: ownRulesAbi, functionName: 'processIncoming', args: [owner, waiting, await commitment('')] }) }]);
   }
 
   return <div className={styles.workbench}>
@@ -48,7 +51,7 @@ export default function RobinhoodHome() {
         <div className={styles.pendingLine}><span>Waiting to be split</span><strong>{usdg(snapshot?.incoming)} USDG</strong></div>
         <div className={styles.buttonRow}>
           {!accountExists && <button className="btn btn-primary" disabled={disabled} onClick={() => void run(() => signed(0, '0x'))}>Create receive account</button>}
-          <button className="btn" disabled={disabled || !accountExists || !snapshot?.rule?.[7] || !Number(snapshot?.incoming)} onClick={() => void run(processPending)}>Split it now</button>
+          <button className="btn" disabled={disabled || !accountExists || !snapshot?.rule?.[7] || !Number(snapshot?.incoming)} onClick={() => void run(processPending)}>{agentOn && delegated ? 'Split now (agent does this automatically)' : 'Split it now'}</button>
         </div>
         {!snapshot?.rule?.[7] && accountExists && <p className={styles.fieldHint}>No rule yet. <Link href="/robinhood/rules">Set your split</Link> so incoming money knows where to go.</p>}
         {accountExists && <>

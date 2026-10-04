@@ -60,6 +60,7 @@ export function friendlyError(e: unknown): string {
     [/AA21|didn.t pay prefund|insufficient funds/i, 'Not enough testnet ETH for gas, and this action was not sponsored.'],
     [/user rejected|denied transaction|rejected the request/i, 'You rejected the request.'],
     [/invalid sender status/i, 'Enter a valid address other than your own.'],
+    [/token transfer failed/i, 'Nothing to move: the funds were already moved (for incoming money, the agent may have just split it).'],
     [/invalid limits/i, 'Daily limit must be at least the max per payment, and both must be above zero.'],
     [/split over 100%/i, 'Savings and ownership together can’t exceed 100%.'],
     [/allowance/i, 'Token approval is missing or too low.'],
