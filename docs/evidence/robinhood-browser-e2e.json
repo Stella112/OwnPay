@@ -15,7 +15,34 @@
     "userOpSuccess": true,
     "userGasCostWei": "0",
     "smartAccountEthAfter": "0",
-    "grant": { "id": 7, "token": "TSLA", "amount": "0.1", "from": "0x5eE7D5D8e9a7bA4c3fdBe76cBd72207c6eA1F64C", "to": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19", "revocable": true }
+    "grant": {
+      "id": 7,
+      "token": "TSLA",
+      "amount": "0.1",
+      "from": "0x5eE7D5D8e9a7bA4c3fdBe76cBd72207c6eA1F64C",
+      "to": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
+      "revocable": true
+    }
   },
-  "uiObserved": "Grant #7 listed under Your stock grants with live vesting progress (25% at screenshot), claimable 0.025, Revoke unvested shown; TSLA holding updated 1 -> 0.9."
+  "uiObserved": "Grant #7 listed under Your stock grants with live vesting progress (25% at screenshot), claimable 0.025, Revoke unvested shown; TSLA holding updated 1 -> 0.9.",
+  "usdgPay": {
+    "action": "Pay tab: 1 USDG to 0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19 in smart-account mode",
+    "receiptId": 4,
+    "tx": "0x720c222d03905d3dc4e4da5fe3627e0aa615dcfb309cd0e20b4ce8d6c53b6e93",
+    "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x720c222d03905d3dc4e4da5fe3627e0aa615dcfb309cd0e20b4ce8d6c53b6e93",
+    "split": {
+      "amount": "1",
+      "spendable": "0.7",
+      "saved": "0.1",
+      "ownership": "0.2",
+      "conserved": true
+    },
+    "via": "EntryPoint (sponsored user operation; USDG approve + OwnRules.pay batched)",
+    "smartAccountEthAfter": "0",
+    "prerequisites": "Payer and recipient approved in the local test compliance policy (24h); ZeroDev contract policies for OwnRules.pay and USDG.approve.",
+    "lessonsLearned": [
+      "Unapproved payer correctly reverted with compliance denied (fail-closed).",
+      "A misassigned ZeroDev policy (claim on USDG instead of approve) rejected sponsorship; fixed by giving USDG an approve policy."
+    ]
+  }
 }
