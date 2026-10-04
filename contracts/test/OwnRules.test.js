@@ -5,14 +5,19 @@ const { time } = require('@nomicfoundation/hardhat-network-helpers');
 async function fixture() {
   const [admin, owner, payer, agent, attacker] = await ethers.getSigners();
   const token = await (await ethers.getContractFactory('MockB20')).deploy('Test USDG', 'USDG', 6);
-  const router = await (await ethers.getContractFactory('OwnRules')).deploy(await token.getAddress());
-  const adapter = await (await ethers.getContractFactory('DemoOwnershipAdapter')).deploy(await router.getAddress(), await token.getAddress());
-  await router.setAdapter(await adapter.getAddress(), true);
+  const Stock = await ethers.getContractFactory('MockStockToken');
+  const tsla = await Stock.deploy('Tesla', 'TSLA'); const amzn = await Stock.deploy('Amazon', 'AMZN');
+  // relayer = admin, quotes valid for 30 min, no spread (keeps the math exact in tests)
+  const desk = await (await ethers.getContractFactory('OwnPayStockDesk')).deploy(await token.getAddress(), admin.address, 1800, 0);
+  for (const t of [tsla, amzn]) { await desk.list(await t.getAddress(), true); await t.mint(await desk.getAddress(), 1000n * 10n ** 18n); }
+  const fresh = async () => desk.pushPrices([await tsla.getAddress(), await amzn.getAddress()], [250n * 10n ** 8n, 200n * 10n ** 8n], [await time.latest(), await time.latest()]);
+  await fresh();
+  const router = await (await ethers.getContractFactory('OwnRules')).deploy(await token.getAddress(), await desk.getAddress());
   await router.connect(owner).createAccount();
-  await router.connect(owner).saveRule(1000, 2000, 100e6, 200e6, ethers.ZeroAddress, 0, true);
+  await router.connect(owner).saveRule(1000, 2000, 100e6, 200e6, [], [], true);
   await token.mint(payer.address, 1000e6);
   await token.connect(payer).approve(await router.getAddress(), 1000e6);
-  return { admin, owner, payer, agent, attacker, token, router, adapter };
+  return { admin, owner, payer, agent, attacker, token, router, desk, tsla, amzn, fresh };
 }
 const memo = ethers.keccak256(ethers.toUtf8Bytes('random salt + encrypted private memo'));
 async function sign(f, action, data = '0x', overrides = {}) {
@@ -39,7 +44,7 @@ describe('OwnRules financial and security integration', function () {
       const s = await sign(f, action, data);
       await f.router.connect(f.attacker).executeSigned(f.owner.address, action, data, s.deadline, s.signature);
     }
-    await relay(1, coder.encode(['uint16','uint16','uint128','uint128','address','uint128','bool'], [1000,2000,100e6,200e6,ethers.ZeroAddress,0,true]));
+    await relay(1, coder.encode(['uint16','uint16','uint128','uint128','address[]','uint16[]','bool'], [1000,2000,100e6,200e6,[],[],true]));
     await f.router.connect(f.owner).delegate(f.agent.address, (await time.latest()) + 3600);
     await relay(4, coder.encode(['uint64'], [60]));
     expect(await f.router.vestingSeconds(f.owner.address)).to.equal(60);
@@ -56,20 +61,23 @@ describe('OwnRules financial and security integration', function () {
     const order = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
     const high = ethers.concat([parsed.r, ethers.toBeHex(order - BigInt(parsed.s), 32), ethers.toBeHex(parsed.v === 27 ? 28 : 27, 1)]);
     await expect(f.router.executeSigned(f.owner.address, 9, '0x', s.deadline, high)).to.be.revertedWith('noncanonical signature');
-    const other = await sign(f, 9, '0x', { verifyingContract: await f.adapter.getAddress() });
+    const other = await sign(f, 9, '0x', { verifyingContract: await f.desk.getAddress() });
     await expect(f.router.executeSigned(f.owner.address, 9, '0x', other.deadline, other.signature)).to.be.revertedWith('wrong signer');
     expect(await f.router.nonces(f.owner.address)).to.equal(0);
   });
-  it('blocks reentrancy and dishonest adapters without losing any payer funds', async () => {
-    for (const reenter of [true, false]) {
+  it('dishonest or reentrant venues cannot take funds: payment succeeds, ownership stays queued', async () => {
+    for (const mode of [1, 2]) {
       const f = await fixture();
-      const evil = await (await ethers.getContractFactory('AdversarialRuleAdapter')).deploy(await f.token.getAddress(), await f.router.getAddress(), reenter);
-      await f.router.setAdapter(await evil.getAddress(), true);
-      await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, await evil.getAddress(), 1e6, true);
-      await expect(f.router.connect(f.payer).pay(f.owner.address, 100e6, memo)).to.be.revertedWith(reenter ? 'reentrant' : 'ownership output shortfall');
-      expect(await f.token.balanceOf(f.payer.address)).to.equal(1000e6);
-      expect(await f.router.savings(f.owner.address)).to.equal(0);
-      expect(await f.router.receiptCount()).to.equal(0);
+      const evil = await (await ethers.getContractFactory('AdversarialDesk')).deploy(await f.token.getAddress());
+      const router = await (await ethers.getContractFactory('OwnRules')).deploy(await f.token.getAddress(), await evil.getAddress());
+      await evil.configure(mode, await router.getAddress());
+      await router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [await f.tsla.getAddress()], [10000], true);
+      await f.token.connect(f.payer).approve(await router.getAddress(), 1000e6);
+      await expect(router.connect(f.payer).pay(f.owner.address, 100e6, memo)).to.emit(router, 'OwnershipQueued').withArgs(f.owner.address, 20e6);
+      expect(await router.ownershipReserve(f.owner.address)).to.equal(20e6);
+      expect(await f.token.balanceOf(await router.getAddress())).to.equal(30e6); // savings + queued ownership, nothing leaked
+      await expect(router.connect(f.owner).buyPending(f.owner.address, 20e6)).to.be.revertedWith(mode === 1 ? 'ownership output shortfall' : 'reentrant');
+      expect(await router.ownershipReserve(f.owner.address)).to.equal(20e6);
     }
   });
   it('conserves funds across multiple integer-rounding cases', async () => {
@@ -83,15 +91,15 @@ describe('OwnRules financial and security integration', function () {
   });
   it('vests real received demo assets, discovers grants without links, and claims only to owner', async () => {
     const f = await fixture();
-    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, await f.adapter.getAddress(), 10n ** 18n, true);
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [await f.tsla.getAddress()], [10000], true);
     await f.router.connect(f.owner).setVestingSeconds(100);
-    await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo);
+    await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo); // 20 USDG at $250 = 0.08 TSLA, into vesting
     const vesting = await ethers.getContractAt('OwnAssetVesting', await f.router.vesting());
-    const asset = await ethers.getContractAt('DemoOwnershipUnits', await f.adapter.asset());
+    const asset = f.tsla;
     expect(await vesting.grantCount(f.owner.address)).to.equal(1);
     expect(await vesting.grantId(f.owner.address, 0)).to.equal(0);
     expect(await asset.balanceOf(f.owner.address)).to.equal(0);
-    expect(await asset.balanceOf(await vesting.getAddress())).to.equal(20n * 10n ** 18n);
+    expect(await asset.balanceOf(await vesting.getAddress())).to.equal(8n * 10n ** 16n);
     await expect(vesting.connect(f.attacker).credit(f.attacker.address, await asset.getAddress(), 1, 100)).to.be.revertedWith('invalid credit');
     await time.increase(50);
     await vesting.connect(f.attacker).claim(0);
@@ -99,7 +107,7 @@ describe('OwnRules financial and security integration', function () {
     expect(await asset.balanceOf(f.owner.address)).to.be.greaterThan(0);
     await time.increase(100);
     await vesting.claim(0);
-    expect(await asset.balanceOf(f.owner.address)).to.equal(20n * 10n ** 18n);
+    expect(await asset.balanceOf(f.owner.address)).to.equal(8n * 10n ** 16n);
     expect(await vesting.escrowed(await asset.getAddress())).to.equal(0);
     await expect(vesting.claim(0)).to.be.revertedWith('nothing vested');
   });
@@ -118,14 +126,68 @@ describe('OwnRules financial and security integration', function () {
     expect(await f.router.savings(f.owner.address)).to.equal(10e6);
     expect(await f.router.ownershipReserve(f.owner.address)).to.equal(20e6);
   });
-  it('buys actual explicitly DEMO units through an approved adapter', async () => {
+  it('buys a 50/50 stock portfolio instantly when prices are fresh', async () => {
     const f = await fixture();
-    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, await f.adapter.getAddress(), 10n ** 18n, true);
-    await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo);
-    const asset = await ethers.getContractAt('DemoOwnershipUnits', await f.adapter.asset());
-    expect(await asset.balanceOf(f.owner.address)).to.equal(20n * 10n ** 18n);
-    expect(await f.token.balanceOf(f.admin.address)).to.equal(20e6);
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [await f.tsla.getAddress(), await f.amzn.getAddress()], [5000, 5000], true);
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 100e6, memo))
+      .to.emit(f.router, 'OwnershipBought').withArgs(f.owner.address, await f.tsla.getAddress(), 10e6, 4n * 10n ** 16n)
+      .and.to.emit(f.router, 'OwnershipBought').withArgs(f.owner.address, await f.amzn.getAddress(), 10e6, 5n * 10n ** 16n);
+    expect(await f.tsla.balanceOf(f.owner.address)).to.equal(4n * 10n ** 16n);  // $10 / $250
+    expect(await f.amzn.balanceOf(f.owner.address)).to.equal(5n * 10n ** 16n);  // $10 / $200
+    expect(await f.token.balanceOf(await f.desk.getAddress())).to.equal(20e6);
     expect(await f.router.ownershipReserve(f.owner.address)).to.equal(0);
+    expect(await f.token.balanceOf(f.owner.address)).to.equal(70e6);
+  });
+  it('queues ownership while the market is closed, then the agent buys at the next session', async () => {
+    const f = await fixture();
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [await f.tsla.getAddress()], [10000], true);
+    await time.increase(3600); // quotes now older than maxAge: market closed
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 100e6, memo)).to.emit(f.router, 'OwnershipQueued').withArgs(f.owner.address, 20e6);
+    expect(await f.token.balanceOf(f.owner.address)).to.equal(70e6);          // spendable arrives anyway
+    expect(await f.router.ownershipReserve(f.owner.address)).to.equal(20e6); // earmarked
+    expect(await f.tsla.balanceOf(f.owner.address)).to.equal(0);
+    await expect(f.router.connect(f.agent).buyPending(f.owner.address, 20e6)).to.be.revertedWith('agent denied');
+    await f.router.connect(f.owner).delegate(f.agent.address, (await time.latest()) + 86400);
+    await expect(f.router.connect(f.agent).buyPending(f.owner.address, 20e6)).to.be.revertedWith('stale price');
+    await f.fresh(); // next session opens
+    await f.router.connect(f.agent).buyPending(f.owner.address, 20e6);
+    expect(await f.tsla.balanceOf(f.owner.address)).to.equal(8n * 10n ** 16n);
+    expect(await f.router.ownershipReserve(f.owner.address)).to.equal(0);
+  });
+  it('validates portfolios: listed, unique, non-zero, totals 100%, at most 5', async () => {
+    const f = await fixture(); const t = await f.tsla.getAddress(); const a = await f.amzn.getAddress();
+    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [f.attacker.address], [10000], true)).to.be.revertedWith('asset not listed');
+    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [t, a], [5000, 4000], true)).to.be.revertedWith('weights must total 100%');
+    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [t, t], [5000, 5000], true)).to.be.revertedWith('duplicate asset');
+    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [t, a], [10000, 0], true)).to.be.revertedWith('zero weight');
+    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [t, a, t, a, t, a], [1, 1, 1, 1, 1, 1], true)).to.be.revertedWith('invalid portfolio');
+    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [t], [], true)).to.be.revertedWith('invalid portfolio');
+    await f.router.connect(f.owner).saveRule(0, 2000, 1, 1, [t, a], [7000, 3000], true);
+    const p = await f.router.portfolioOf(f.owner.address);
+    expect(p.map((x) => [x.asset, Number(x.weightBps)])).to.deep.equal([[t, 7000], [a, 3000]]);
+  });
+  it('owner can cancel queued ownership by withdrawing it as USDG', async () => {
+    const f = await fixture();
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [await f.tsla.getAddress()], [10000], true);
+    await time.increase(3600);
+    await f.router.connect(f.payer).pay(f.owner.address, 100e6, memo);
+    await f.router.connect(f.owner).withdraw(true, 20e6);
+    expect(await f.token.balanceOf(f.owner.address)).to.equal(90e6);
+    await expect(f.router.connect(f.owner).buyPending(f.owner.address, 1)).to.be.revertedWith('exceeds earmarked ownership');
+  });
+  it('desk: only the relayer prices, no future quotes, honors uiMultiplier and inventory', async () => {
+    const f = await fixture(); const t = await f.tsla.getAddress();
+    await expect(f.desk.connect(f.attacker).pushPrices([t], [1], [await time.latest()])).to.be.revertedWith('not relayer');
+    await expect(f.desk.pushPrices([t], [1], [(await time.latest()) + 3600])).to.be.revertedWith('quote from the future');
+    expect(await f.desk.quote(t, 10e6)).to.equal(4n * 10n ** 16n);
+    await f.tsla.setUiMultiplier(2n * 10n ** 18n); // 1 raw unit now displays as 2 shares
+    expect(await f.desk.quote(t, 10e6)).to.equal(2n * 10n ** 16n);
+    await f.tsla.setUiMultiplier(10n ** 18n);
+    await expect(f.desk.quote(t, 10n ** 15n)).to.not.be.reverted;
+    const hugeBuyer = f.payer; await f.token.mint(hugeBuyer.address, 10n ** 12n); await f.token.connect(hugeBuyer).approve(await f.desk.getAddress(), 10n ** 12n);
+    await expect(f.desk.connect(hugeBuyer).buy(t, 10n ** 12n, 0, hugeBuyer.address)).to.be.revertedWith('insufficient inventory');
+    await time.increase(3600);
+    await expect(f.desk.quote(t, 10e6)).to.be.revertedWith('stale price');
   });
   it('agent processes incoming USDG without arbitrary transfer authority', async () => {
     const f = await fixture();
@@ -149,7 +211,7 @@ describe('OwnRules financial and security integration', function () {
   });
   it('revokes delegation and invalidates it on rule edit', async () => {
     const f = await fixture(); await f.router.connect(f.owner).delegate(f.agent.address, (await time.latest()) + 3600);
-    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, ethers.ZeroAddress, 0, true);
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [], [], true);
     await expect(f.router.connect(f.agent).processIncoming(f.owner.address, 1, memo)).to.be.revertedWith('agent denied');
     await f.router.connect(f.owner).delegate(f.agent.address, (await time.latest()) + 3600);
     await f.router.connect(f.owner).delegate(ethers.ZeroAddress, 0);
@@ -211,7 +273,6 @@ describe('OwnRules financial and security integration', function () {
     await expect(f.router.connect(f.owner).setSender(ethers.ZeroAddress, 1)).to.be.revertedWith('invalid sender status');
     await expect(f.router.connect(f.owner).setSender(f.owner.address, 1)).to.be.revertedWith('invalid sender status');
     await expect(f.router.connect(f.owner).setSender(f.payer.address, 3)).to.be.revertedWith('invalid sender status');
-    await expect(f.router.connect(f.attacker).setAdapter(f.attacker.address, true)).to.be.revertedWith('not adapter admin');
   });
   it('relays signed policy and sender intents (actions 5 and 6)', async () => {
     const f = await fixture(); const coder = ethers.AbiCoder.defaultAbiCoder();
@@ -222,16 +283,15 @@ describe('OwnRules financial and security integration', function () {
     await f.router.connect(f.attacker).executeSigned(f.owner.address, 6, q.data, q.deadline, q.signature);
     expect(await f.router.senderStatus(f.owner.address, f.payer.address)).to.equal(2);
   });
-  it('rejects invalid split, limits and unapproved adapter', async () => {
+  it('rejects invalid split and limits', async () => {
     const f = await fixture();
-    await expect(f.router.connect(f.owner).saveRule(9000, 2000, 1, 1, ethers.ZeroAddress, 0, true)).to.be.revertedWith('split over 100%');
-    await expect(f.router.connect(f.owner).saveRule(0, 0, 2, 1, ethers.ZeroAddress, 0, true)).to.be.revertedWith('invalid limits');
-    await expect(f.router.connect(f.owner).saveRule(0, 2000, 1, 1, f.attacker.address, 1, true)).to.be.revertedWith('unapproved adapter/price');
+    await expect(f.router.connect(f.owner).saveRule(9000, 2000, 1, 1, [], [], true)).to.be.revertedWith('split over 100%');
+    await expect(f.router.connect(f.owner).saveRule(0, 0, 2, 1, [], [], true)).to.be.revertedWith('invalid limits');
   });
   it('rejects zero, oversize and disabled payments', async () => {
     const f = await fixture();
     for (const amount of [0, 101e6]) await expect(f.router.connect(f.payer).pay(f.owner.address, amount, memo)).to.be.revertedWith('payment policy denied');
-    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, ethers.ZeroAddress, 0, false);
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [], [], false);
     await expect(f.router.connect(f.payer).pay(f.owner.address, 1, memo)).to.be.revertedWith('payment policy denied');
   });
   it('enforces cumulative daily limit, resets next day', async () => {
@@ -255,12 +315,13 @@ describe('OwnRules financial and security integration', function () {
     expect(await f.token.balanceOf(f.owner.address)).to.equal(6);
     expect(await f.router.ownershipReserve(f.owner.address)).to.equal(1);
   });
-  it('adapter disable and minimum output cause atomic rollback', async () => {
-    const f = await fixture(); await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, await f.adapter.getAddress(), 2n * 10n ** 18n, true);
-    await expect(f.router.connect(f.payer).pay(f.owner.address, 100e6, memo)).to.be.revertedWith('minimum output');
-    expect(await f.router.savings(f.owner.address)).to.equal(0);
-    await f.router.setAdapter(await f.adapter.getAddress(), false);
-    await expect(f.router.connect(f.payer).pay(f.owner.address, 100e6, memo)).to.be.revertedWith('adapter disabled');
+  it('out-of-inventory purchase queues instead of failing the payment', async () => {
+    const f = await fixture();
+    await f.router.connect(f.owner).saveRule(1000, 2000, 100e6, 200e6, [await f.tsla.getAddress()], [10000], true);
+    await f.desk.withdraw(await f.tsla.getAddress(), 1000n * 10n ** 18n); // desk empty
+    await expect(f.router.connect(f.payer).pay(f.owner.address, 100e6, memo)).to.emit(f.router, 'OwnershipQueued');
+    expect(await f.router.savings(f.owner.address)).to.equal(10e6);
+    expect(await f.router.ownershipReserve(f.owner.address)).to.equal(20e6);
   });
   it('sponsor executes signed intent; replay, changed data and cross-chain signatures fail', async () => {
     const f = await fixture(); const data = ethers.AbiCoder.defaultAbiCoder().encode(['address', 'uint64'], [f.agent.address, (await time.latest()) + 3600]);

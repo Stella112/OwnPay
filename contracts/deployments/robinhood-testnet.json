@@ -1,17 +1,45 @@
 {
+  "version": 3,
   "chainId": 46630,
   "usdg": "0x7E955252E15c84f5768B83c41a71F9eba181802F",
-  "ownRules": "0x5EBe85fF24699925be0054c96ef7e8bb444FB1DB",
-  "vesting": "0x9E726C80f22F057A365d2F482f72180b5dFCd4e1",
-  "demoAdapter": "0xfb2C898DB77D6FECba6b6A9e4Cd8A0869F166734",
-  "demoAsset": "0x6BD8c0B70953A547119a7596BCf985f00389D60f",
-  "deployedAt": "2026-10-04T10:10:04.258Z",
-  "deploymentBlock": 128647610,
+  "ownRules": "0x4F4Fe524a782C576E4dF027E911c6dAA00115c40",
+  "vesting": "0x9B35E3086DA47a6017EB38b6679E7B01f0C9Ac78",
+  "stockDesk": "0x688279Dbf5731eDA609eA0A8D209Cd09665044A5",
+  "deploymentBlock": 128740839,
   "deployer": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19",
-  "transactions": {
-    "ownRules": "0x01ee2f314cbc5545947c9dac62510d195d5c615b12ec5d4f6d5c1986ba4e4a72",
-    "demoAdapter": "0x00a752dcf13df441bcef5e4bc2e91f165791a6bf6e3f3bd88377b70dcc8be0f9",
-    "adapterApproval": "0x85fadf5dae80b1db0a6de7f04d63f3ae0ec3d18bb4960395ad6cf7334ec5818f"
+  "deployedAt": "2026-10-04T13:50:59.395Z",
+  "desk": {
+    "relayer": "0xe281AaECD81ae50179Bc0026eC253aD2172D7898",
+    "maxAgeSeconds": 1800,
+    "spreadBps": 30,
+    "listed": {
+      "TSLA": "0xC9f9c86933092BbbfFF3CCb4b105A4A94bf3Bd4E",
+      "AMD": "0x71178BAc73cBeb415514eB542a8995b82669778d",
+      "AMZN": "0x5884aD2f920c162CFBbACc88C9C51AA75eC09E02",
+      "NFLX": "0x3b8262A63d25f0477c4DDE23F83cfe22Cb768C93",
+      "PLTR": "0x1FBE1a0e43594b3455993B5dE5Fd0A7A266298d0"
+    },
+    "seededShares": {
+      "TSLA": "3.0",
+      "AMD": "3.0",
+      "AMZN": "3.0",
+      "NFLX": "3.0",
+      "PLTR": "3.0"
+    }
   },
-  "demoAssetDisclaimer": "DEMO-OWN has no value; not a Robinhood Stock Token or real equity."
+  "transactions": {
+    "desk": "0xc3ce2d2818be15f2ac48d92a4cd185a00d715ea31687c14f6b9a82c36e27fde3",
+    "list TSLA": "0x2a2a87da2f8d98c9762aad3e0a7c885d2b36c930394703a49dab3b5020ccfa2b",
+    "list AMD": "0x13490be4344c2f06b189cd9f1dfacece2ac1b0a8652c97cb7b20e7d82bd62a21",
+    "list AMZN": "0x297a4ee8167a60e992d869001086decbbc7c790c0711b77c6aa19ad5c5f3a700",
+    "list NFLX": "0x049a6da29d5879d61f8425023f5c90814296c83c021c5c4ad4d1654c4dfbcb4f",
+    "list PLTR": "0x779b420e45e8928764277baed646be0dae06fc9a69cf6997a9a5091773987d87",
+    "ownRules": "0x24cbfc4c7ff556a4e5ccfd52e39404ce29c127cb059e8bb4c67197a276608c7d",
+    "seed TSLA": "0xf13eabb92316e5dab26c67a018286c3fac3805bc7c5412fb244f078bf5311ae6",
+    "seed AMD": "0x6854d710390153858ed8fe758c042e8b743035e82d1f4886b68890e9b3217564",
+    "seed AMZN": "0xb110e848debfea346bb529193ab2aa0cfd923c698c882cfbd6d48b5280cfdfba",
+    "seed NFLX": "0x814a06e5e98497f4715a632aaa2362013e0c401120d02e8fc69feb91916cec69",
+    "seed PLTR": "0xe34cddda0edb0d6c94e036a53fb4741267870561c2100d2fe7768258e3a68520"
+  },
+  "disclaimer": "Testnet only. The desk sells faucet-issued stock tokens (no monetary value) at relayed public market prices; not a DEX or investment venue."
 }

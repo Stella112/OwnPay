@@ -5,9 +5,14 @@ interface IRuleToken {
     function balanceOf(address) external view returns (uint256);
     function transfer(address, uint256) external returns (bool);
     function transferFrom(address, address, uint256) external returns (bool);
+    function approve(address, uint256) external returns (bool);
 }
 
 library RuleToken {
+    function approve(address token, address spender, uint256 amount) internal {
+        (bool ok, bytes memory result) = token.call(abi.encodeCall(IRuleToken.approve, (spender, amount)));
+        require(ok && (result.length == 0 || abi.decode(result, (bool))), "token approve failed");
+    }
     function send(address token, address to, uint256 amount) internal {
         (bool ok, bytes memory result) = token.call(abi.encodeCall(IRuleToken.transfer, (to, amount)));
         require(ok && (result.length == 0 || abi.decode(result, (bool))), "token transfer failed");
@@ -37,9 +42,11 @@ contract OwnReceiveAccount {
     }
 }
 
-interface IOwnershipAdapter {
-    function asset() external view returns (address);
-    function buy(uint256 usdgAmount, address recipient, uint256 minOut) external returns (uint256);
+/// Venue that sells stock tokens for USDG at fresh market prices (see OwnPayStockDesk).
+interface IStockDesk {
+    function listed(address asset) external view returns (bool);
+    function quote(address asset, uint256 usdgIn) external view returns (uint256);
+    function buy(address asset, uint256 usdgIn, uint256 minOut, address recipient) external returns (uint256);
 }
 
 /// @notice Linear escrow for ownership assets actually received; not an investment product.
@@ -77,8 +84,11 @@ contract OwnAssetVesting {
     }
 }
 
-/// @notice Financial split router: spendable goes to owner, savings stays redeemable
-/// in this contract, ownership buys an explicitly allowed asset or stays as USDG reserve.
+/// @notice Financial split router: spendable goes to the owner, savings stays redeemable
+/// here, and the ownership share buys the owner's chosen stock portfolio. If the
+/// market is closed (stale price) or the desk can't fill, the ownership share is
+/// queued as earmarked USDG and bought later (owner or delegated agent calls
+/// buyPending); the payment itself never fails because of the market.
 /// Compliance is recipient-programmed: each owner sets who may pay them and on what
 /// terms (allowlist, blocklist, required memo, per-sender daily cap). There is no
 /// administrator in the payment path. This is not KYC or sanctions screening.
@@ -88,11 +98,12 @@ contract OwnRules {
         uint16 ownershipBps;
         uint128 maxPayment;
         uint128 dailyLimit;
-        address adapter;
-        uint128 minAssetPerUsdg; // raw asset units per 1e6 raw USDG, minimum acceptable price
         uint64 version;
         bool enabled;
     }
+    /// One slice of the ownership portfolio: `weightBps` of the ownership share buys `asset`.
+    struct Allocation { address asset; uint16 weightBps; }
+    uint256 public constant MAX_ASSETS = 5;
     struct Delegation { address agent; uint64 expires; uint64 ruleVersion; }
     /// Recipient-programmed payment policy; only the recipient can change it.
     struct Policy { bool allowlistOnly; bool requireMemo; uint128 perSenderDailyCap; }
@@ -100,9 +111,10 @@ contract OwnRules {
     uint8 public constant SENDER_ALLOWED = 1;
     uint8 public constant SENDER_BLOCKED = 2;
     address public immutable usdg;
-    /// Approves ownership adapters (swap venues) only. Has no say over who pays whom.
-    address public immutable adapterAdmin;
+    /// Stock venue used for ownership purchases (address(0) = keep ownership as USDG).
+    IStockDesk public immutable desk;
     OwnAssetVesting public immutable vesting;
+    mapping(address => Allocation[]) private portfolio;
     mapping(address => uint64) public vestingSeconds;
     mapping(address => address) public accounts;
     mapping(address => Rule) public rules;
@@ -111,8 +123,8 @@ contract OwnRules {
     mapping(address => mapping(address => uint8)) public senderStatus; // owner => sender => status
     mapping(address => mapping(address => uint256)) public senderSpentDay;
     mapping(address => mapping(address => uint256)) public senderSpentToday;
-    mapping(address => bool) public allowedAdapters;
     mapping(address => uint256) public savings;
+    /// USDG earmarked for the owner's portfolio, waiting to be bought (or withdrawn).
     mapping(address => uint256) public ownershipReserve;
     mapping(address => uint256) public nonces;
     mapping(address => uint256) public spentDay;
@@ -121,23 +133,25 @@ contract OwnRules {
     uint256 private lock = 1;
     bytes32 private constant INTENT_TYPEHASH = keccak256("Intent(address owner,uint8 action,bytes32 dataHash,uint256 nonce,uint256 deadline)");
     modifier guarded() { require(lock == 1, "reentrant"); lock = 2; _; lock = 1; }
-    modifier admin() { require(msg.sender == adapterAdmin, "not adapter admin"); _; }
     event AccountCreated(address indexed owner, address indexed account);
-    event RuleSaved(address indexed owner, uint64 version, uint16 savingsBps, uint16 ownershipBps, address adapter);
+    event RuleSaved(address indexed owner, uint64 version, uint16 savingsBps, uint16 ownershipBps, address[] assets, uint16[] weightsBps);
+    event OwnershipQueued(address indexed owner, uint256 usdgAmount);
+    event OwnershipBought(address indexed owner, address indexed asset, uint256 usdgIn, uint256 rawOut);
     event AgentChanged(address indexed owner, address agent, uint64 expires, uint64 version);
     event PolicySaved(address indexed owner, bool allowlistOnly, bool requireMemo, uint128 perSenderDailyCap);
     event SenderStatusChanged(address indexed owner, address indexed sender, uint8 status);
-    event AdapterChanged(address indexed adapter, bool enabled);
     event PaymentReceipt(uint256 indexed id, address indexed owner, address indexed payer, uint256 amount,
         uint256 spendable, uint256 saved, uint256 ownership, uint256 assetOut, uint64 ruleVersion, bytes32 metadataCommitment);
     event Withdrawal(address indexed owner, bool ownership, uint256 amount);
     event VestingChanged(address indexed owner, uint64 seconds_, uint64 version);
 
-    constructor(address usdg_) {
+    constructor(address usdg_, address desk_) {
         require(usdg_.code.length > 0, "USDG has no code");
-        usdg = usdg_; adapterAdmin = msg.sender;
+        require(desk_ == address(0) || desk_.code.length > 0, "desk has no code");
+        usdg = usdg_; desk = IStockDesk(desk_);
         vesting = new OwnAssetVesting();
     }
+    function portfolioOf(address owner) external view returns (Allocation[] memory) { return portfolio[owner]; }
     function setPolicy(bool allowlistOnly, bool requireMemo, uint128 perSenderDailyCap) external guarded {
         _setPolicy(msg.sender, allowlistOnly, requireMemo, perSenderDailyCap);
     }
@@ -151,30 +165,38 @@ contract OwnRules {
         senderStatus[owner][sender] = status;
         emit SenderStatusChanged(owner, sender, status);
     }
-    function setAdapter(address adapter, bool enabled) external admin {
-        require(adapter.code.length > 0, "adapter has no code");
-        allowedAdapters[adapter] = enabled; emit AdapterChanged(adapter, enabled);
-    }
     function createAccount() external guarded returns (address) { return _create(msg.sender); }
     function _create(address owner) internal returns (address) {
         require(accounts[owner] == address(0), "account exists");
         address account = address(new OwnReceiveAccount(owner, usdg));
         accounts[owner] = account; emit AccountCreated(owner, account); return account;
     }
+    /// @param assets / weightsBps  The ownership portfolio: weights (sum 10000) of the
+    ///        ownership share buy each listed stock. Empty = keep ownership as USDG.
     function saveRule(uint16 saved, uint16 owned, uint128 maxPayment, uint128 dailyLimit,
-        address adapter, uint128 minRate, bool enabled) external guarded {
-        _save(msg.sender, saved, owned, maxPayment, dailyLimit, adapter, minRate, enabled);
+        address[] calldata assets, uint16[] calldata weightsBps, bool enabled) external guarded {
+        _save(msg.sender, saved, owned, maxPayment, dailyLimit, assets, weightsBps, enabled);
     }
     function _save(address owner, uint16 saved, uint16 owned, uint128 maxPayment, uint128 dailyLimit,
-        address adapter, uint128 minRate, bool enabled) internal {
+        address[] memory assets, uint16[] memory weightsBps, bool enabled) internal {
         require(uint256(saved) + owned <= 10000, "split over 100%");
         require(maxPayment > 0 && dailyLimit >= maxPayment, "invalid limits");
-        require(adapter == address(0) || (allowedAdapters[adapter] && minRate > 0), "unapproved adapter/price");
+        require(assets.length == weightsBps.length && assets.length <= MAX_ASSETS, "invalid portfolio");
+        delete portfolio[owner];
+        uint256 total;
+        for (uint256 i; i < assets.length; i++) {
+            require(address(desk) != address(0) && desk.listed(assets[i]), "asset not listed");
+            require(weightsBps[i] > 0, "zero weight");
+            for (uint256 j; j < i; j++) require(assets[j] != assets[i], "duplicate asset");
+            total += weightsBps[i];
+            portfolio[owner].push(Allocation(assets[i], weightsBps[i]));
+        }
+        require(assets.length == 0 || total == 10000, "weights must total 100%");
         uint64 version = rules[owner].version + 1;
-        rules[owner] = Rule(saved, owned, maxPayment, dailyLimit, adapter, minRate, version, enabled);
+        rules[owner] = Rule(saved, owned, maxPayment, dailyLimit, version, enabled);
         // Any rule modification invalidates previous agent authority.
         delete delegations[owner];
-        emit RuleSaved(owner, version, saved, owned, adapter);
+        emit RuleSaved(owner, version, saved, owned, assets, weightsBps);
     }
     function delegate(address agent, uint64 expires) external guarded { _delegate(msg.sender, agent, expires); }
     function _delegate(address owner, address agent, uint64 expires) internal {
@@ -239,21 +261,52 @@ contract OwnRules {
         uint256 owned = amount * r.ownershipBps / 10000;
         uint256 cash = amount - saved - owned;
         savings[owner] += saved;
-        uint256 assetOut;
-        if (owned > 0 && r.adapter != address(0)) {
-            require(allowedAdapters[r.adapter], "adapter disabled");
-            uint256 minimum = owned * r.minAssetPerUsdg / 1e6;
-            require(minimum > 0, "ownership dust");
-            address asset = IOwnershipAdapter(r.adapter).asset();
-            address recipient = vestingSeconds[owner] > 0 ? address(vesting) : owner;
-            uint256 beforeAsset = IRuleToken(asset).balanceOf(recipient);
-            RuleToken.send(usdg, r.adapter, owned);
-            assetOut = IOwnershipAdapter(r.adapter).buy(owned, recipient, minimum);
-            require(assetOut >= minimum && IRuleToken(asset).balanceOf(recipient) >= beforeAsset + assetOut, "ownership output shortfall");
-            if (vestingSeconds[owner] > 0) vesting.credit(owner, asset, assetOut, vestingSeconds[owner]);
-        } else { ownershipReserve[owner] += owned; }
+        ownershipReserve[owner] += owned;
         if (cash > 0) RuleToken.send(usdg, owner, cash);
-        emit PaymentReceipt(receiptCount++, owner, payer, amount, cash, saved, owned, assetOut, r.version, memo);
+        // Buy the portfolio now if the market is open; otherwise keep it earmarked.
+        // try/catch keeps the payment itself independent of market hours or inventory.
+        if (owned > 0 && portfolio[owner].length > 0) {
+            try this.buyFor(owner, owned) {} catch { emit OwnershipQueued(owner, owned); }
+        }
+        // Purchases are reported per asset in OwnershipBought; assetOut stays 0 here.
+        emit PaymentReceipt(receiptCount++, owner, payer, amount, cash, saved, owned, 0, r.version, memo);
+    }
+    /// Self-call target so a failed purchase can be caught without failing the payment.
+    function buyFor(address owner, uint256 amount) external {
+        require(msg.sender == address(this), "internal only");
+        _buy(owner, amount);
+    }
+    /// Buy earmarked ownership now (e.g. at the next market session). Callable by the
+    /// owner, or by their delegated agent under the same rule-version-bound delegation.
+    /// Reverts (nothing changes) if any slice can't be filled; it can be retried later.
+    function buyPending(address owner, uint256 amount) external guarded {
+        if (msg.sender != owner) {
+            Delegation memory d = delegations[owner];
+            require(d.agent == msg.sender && d.expires >= block.timestamp && d.ruleVersion == rules[owner].version, "agent denied");
+        }
+        _buy(owner, amount);
+    }
+    function _buy(address owner, uint256 amount) internal {
+        Allocation[] memory p = portfolio[owner];
+        require(p.length > 0, "no portfolio");
+        require(amount > 0 && amount <= ownershipReserve[owner], "exceeds earmarked ownership");
+        ownershipReserve[owner] -= amount;
+        address recipient = vestingSeconds[owner] > 0 ? address(vesting) : owner;
+        uint256 spent;
+        for (uint256 i; i < p.length; i++) {
+            uint256 slice = i == p.length - 1 ? amount - spent : amount * p[i].weightBps / 10000;
+            spent += slice;
+            if (slice == 0) continue;
+            uint256 minOut = desk.quote(p[i].asset, slice); // reverts "stale price" when the market is closed
+            uint256 before = IRuleToken(p[i].asset).balanceOf(recipient);
+            RuleToken.approve(usdg, address(desk), slice);
+            uint256 out = desk.buy(p[i].asset, slice, minOut, recipient);
+            RuleToken.approve(usdg, address(desk), 0);
+            // Trust received balances, not the venue's return value.
+            require(out >= minOut && IRuleToken(p[i].asset).balanceOf(recipient) >= before + out, "ownership output shortfall");
+            if (vestingSeconds[owner] > 0) vesting.credit(owner, p[i].asset, out, vestingSeconds[owner]);
+            emit OwnershipBought(owner, p[i].asset, slice, out);
+        }
     }
     function withdraw(bool ownership, uint256 amount) external guarded { _withdraw(msg.sender, ownership, amount); }
     function _withdraw(address owner, bool ownership, uint256 amount) internal {
@@ -282,9 +335,9 @@ contract OwnRules {
         nonces[owner]++;
         if (action == 0) { require(data.length == 0, "unexpected data"); _create(owner); }
         else if (action == 1) {
-            (uint16 saved, uint16 owned, uint128 maxPayment, uint128 dailyLimit, address adapter, uint128 rate, bool enabled) =
-                abi.decode(data, (uint16, uint16, uint128, uint128, address, uint128, bool));
-            _save(owner, saved, owned, maxPayment, dailyLimit, adapter, rate, enabled);
+            (uint16 saved, uint16 owned, uint128 maxPayment, uint128 dailyLimit, address[] memory assets, uint16[] memory weights, bool enabled) =
+                abi.decode(data, (uint16, uint16, uint128, uint128, address[], uint16[], bool));
+            _save(owner, saved, owned, maxPayment, dailyLimit, assets, weights, enabled);
         } else if (action == 2) { (address agent, uint64 expiry) = abi.decode(data, (address, uint64)); _delegate(owner, agent, expiry); }
         else if (action == 3) { (bool owned, uint256 amount) = abi.decode(data, (bool, uint256)); _withdraw(owner, owned, amount); }
         else if (action == 4) { _vesting(owner, abi.decode(data, (uint64))); }
