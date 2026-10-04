@@ -44,5 +44,25 @@
       "Unapproved payer correctly reverted with compliance denied (fail-closed).",
       "A misassigned ZeroDev policy (claim on USDG instead of approve) rejected sponsorship; fixed by giving USDG an approve policy."
     ]
+  },
+  "agentAutomation": {
+    "setup": "Browser (smart-account mode): saved rule v2 (10% savings / 20% ownership, max 100, daily 500) and authorized the agent for 24h. Agent runs as PM2 ownpay-robinhood-agent in execute mode on the VPS with a dedicated key generated on the server (never exported).",
+    "agent": "0xe281AaECD81ae50179Bc0026eC253aD2172D7898",
+    "delegationCheckedOnchain": "delegation agent == configured agent, delegation ruleVersion 2 == current rule version 2",
+    "incomeTx": "0x5928ef1aac4fc76fca2f5cfa7957f836c265de2967d53a61ce1e3a7c3dbd5371",
+    "incomeNote": "5 test USDG sent from a different wallet (deployer) to receive account 0x057670D2C19F835d326E278293229F81dEa103a9",
+    "agentTx": "0x8eb818044ba1c70c48fbf6445a5658b30c36160ea5fdcbfa9cf1948771dde1d7",
+    "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x8eb818044ba1c70c48fbf6445a5658b30c36160ea5fdcbfa9cf1948771dde1d7",
+    "latencySeconds": 6,
+    "split": {
+      "amount": "5",
+      "spendable": "3.5",
+      "saved": "0.5",
+      "ownership": "1",
+      "ruleVersion": 2
+    },
+    "signedBy": "agent address (not the owner)",
+    "receiveAccountAfter": "0 USDG",
+    "agentFix": "Before c7ac318 the agent scanned 200 blocks per >=15s cycle on a ~7 blocks/s chain and could never catch up; now 10k-block chunks and no sleep while behind."
   }
 }
