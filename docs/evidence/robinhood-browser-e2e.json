@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-04T01:10:00Z",
+  "chainId": 46630,
+  "scope": "Real browser session on https://ownpay.online/robinhood: Privy email sign-in -> ZeroDev Kernel smart account -> Stocks tab Pay grant. Verified onchain afterwards by RPC.",
+  "signerWallet": "0xC7538f10045DB02c147C8C1B149E3fF1BbF498E3",
+  "smartAccount": "0x5eE7D5D8e9a7bA4c3fdBe76cBd72207c6eA1F64C",
+  "smartAccountDerivation": "Recomputed offline from the signer address (Kernel v3.1, EntryPoint 0.7) and matched the UI.",
+  "funding": "Deployer sent 1 test share each of TSLA/AMD/AMZN/NFLX/PLTR and 20 test USDG; no ETH.",
+  "action": "Stocks tab -> Pay 0.1 TSLA to 0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19, demo schedule (30s cliff, 2 min vest)",
+  "tx": "0x9260547594479cfad84c105eb7cd2f412536006e1eef641390aad933092824b7",
+  "explorer": "https://explorer.testnet.chain.robinhood.com/tx/0x9260547594479cfad84c105eb7cd2f412536006e1eef641390aad933092824b7",
+  "onchain": {
+    "to": "EntryPoint 0x0000000071727de22e5e9d8baf0edac6f37da032",
+    "userOpSender": "0x5eE7D5D8e9a7bA4c3fdBe76cBd72207c6eA1F64C",
+    "userOpSuccess": true,
+    "userGasCostWei": "0",
+    "smartAccountEthAfter": "0",
+    "grant": { "id": 7, "token": "TSLA", "amount": "0.1", "from": "0x5eE7D5D8e9a7bA4c3fdBe76cBd72207c6eA1F64C", "to": "0xE66581C8f5B91d257b5EAa90168B547Ba28f8e19", "revocable": true }
+  },
+  "uiObserved": "Grant #7 listed under Your stock grants with live vesting progress (25% at screenshot), claimable 0.025, Revoke unvested shown; TSLA holding updated 1 -> 0.9."
+}
