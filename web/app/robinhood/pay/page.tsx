@@ -30,7 +30,7 @@ function PayView() {
         rhChain.readContract({ address: snapshot!.router, abi: ownRulesAbi, functionName: 'policies', args: [r] }),
         owner ? rhChain.readContract({ address: snapshot!.router, abi: ownRulesAbi, functionName: 'senderStatus', args: [r, owner] }) : Promise.resolve(0),
       ]);
-      return { usesOwnPay: rule[7], savings: rule[0], ownership: rule[1], max: rule[2], allowlistOnly: policy[0], requireMemo: policy[1], blocked: myStatus === 2, allowed: myStatus === 1 };
+      return { usesOwnPay: rule[5], savings: rule[0], ownership: rule[1], max: rule[2], allowlistOnly: policy[0], requireMemo: policy[1], blocked: myStatus === 2, allowed: myStatus === 1 };
     },
   });
   const t = target.data;
@@ -46,7 +46,7 @@ function PayView() {
     let raw: bigint; try { raw = parseUnits(amount.trim(), 6); } catch { throw new Error('Enter a valid amount.'); }
     if (raw <= 0n) throw new Error('Amount must be greater than zero.');
     const rule = await rhChain.readContract({ address: snapshot.router, abi: ownRulesAbi, functionName: 'rules', args: [recipient] });
-    if (!rule[7]) { // recipient has not opted in to OwnPay: plain transfer
+    if (!rule[5]) { // recipient has not opted in to OwnPay: plain transfer
       await sendCalls([{ to: TEST_USDG, data: encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [recipient, raw] }) }]);
       return;
     }

@@ -51,9 +51,9 @@ export default function RobinhoodHome() {
         <div className={styles.pendingLine}><span>Waiting to be split</span><strong>{usdg(snapshot?.incoming)} USDG</strong></div>
         <div className={styles.buttonRow}>
           {!accountExists && <button className="btn btn-primary" disabled={disabled} onClick={() => void run(() => signed(0, '0x'))}>Create receive account</button>}
-          <button className="btn" disabled={disabled || !accountExists || !snapshot?.rule?.[7] || !Number(snapshot?.incoming)} onClick={() => void run(processPending)}>{agentOn && delegated ? 'Split now (agent does this automatically)' : 'Split it now'}</button>
+          <button className="btn" disabled={disabled || !accountExists || !snapshot?.rule?.[5] || !Number(snapshot?.incoming)} onClick={() => void run(processPending)}>{agentOn && delegated ? 'Split now (agent does this automatically)' : 'Split it now'}</button>
         </div>
-        {!snapshot?.rule?.[7] && accountExists && <p className={styles.fieldHint}>No rule yet. <Link href="/robinhood/rules">Set your split</Link> so incoming money knows where to go.</p>}
+        {!snapshot?.rule?.[5] && accountExists && <p className={styles.fieldHint}>No rule yet. <Link href="/robinhood/rules">Set your split</Link> so incoming money knows where to go.</p>}
         {accountExists && <>
           <hr className="divide" />
           <h3>Add money</h3>

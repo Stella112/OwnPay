@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createPublicClient, createWalletClient, defineChain, http, erc20Abi, parseAbi, zeroAddress } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { decideIncoming } from './robinhood-agent-policy.mjs';
+import { DESK_STOCKS, fetchQuote, toUsd8 } from './price-relay.mjs';
 const rpc = process.env.ROBINHOOD_TESTNET_RPC_URL || 'https://rpc.testnet.chain.robinhood.com';
 const chain = defineChain({ id: 46630, name: 'Robinhood Chain Testnet', nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: { default: { http: [rpc] } } });
 const usdg = '0x7E955252E15c84f5768B83c41a71F9eba181802F';
@@ -12,7 +13,11 @@ const router = process.env.ROBINHOOD_OWNRULES_ADDRESS;
 if (!/^0x[0-9a-fA-F]{40}$/.test(router || '')) throw new Error('Configure the deployed ROBINHOOD_OWNRULES_ADDRESS.');
 const abi = parseAbi([
   'event AccountCreated(address indexed owner,address indexed account)',
-  'function rules(address) view returns(uint16,uint16,uint128,uint128,address,uint128,uint64,bool)',
+  'function rules(address) view returns(uint16,uint16,uint128,uint128,uint64,bool)',
+  'event OwnershipQueued(address indexed owner,uint256 usdgAmount)',
+  'function ownershipReserve(address) view returns(uint256)',
+  'function portfolioOf(address) view returns((address asset,uint16 weightBps)[])',
+  'function buyPending(address owner,uint256 amount)',
   'function delegations(address) view returns(address,uint64,uint64)',
   'function policies(address) view returns(bool,bool,uint128)',
   'function spentDay(address) view returns(uint256)',
@@ -28,6 +33,14 @@ if (execute && !signer) throw new Error('Execute mode requires a dedicated testn
 if (signer && process.env.ROBINHOOD_AGENT_ADDRESS && signer.address.toLowerCase() !== process.env.ROBINHOOD_AGENT_ADDRESS.toLowerCase()) throw new Error('Configured agent address does not match the dedicated signer.');
 const wallet = signer ? createWalletClient({ account: signer, chain, transport: http(rpc) }) : null;
 if (await client.getChainId() !== 46630 || !await client.getCode({ address: router }) || (await client.readContract({ address: router, abi, functionName: 'usdg' })).toLowerCase() !== usdg.toLowerCase()) throw new Error('Testnet/contract/token verification failed.');
+const deskAddress = process.env.ROBINHOOD_STOCK_DESK;
+const deskAbi = parseAbi([
+  'function prices(address) view returns(uint128 usdPerShare,uint64 quoteTime)',
+  'function isFresh(address) view returns(bool)',
+  'function relayer() view returns(address)',
+  'function pushPrices(address[] assets,uint128[] usdPerShare,uint64[] quoteTimes)',
+]);
+let lastPricePushAt = null; let freshAssets = 0;
 const stateFile = path.resolve(process.env.ROBINHOOD_AGENT_STATE_FILE || '.robinhood-agent/state.json');
 const healthFile = path.resolve(process.env.ROBINHOOD_AGENT_HEALTH_FILE || path.join(path.dirname(stateFile), 'health.json'));
 await fs.mkdir(path.dirname(stateFile), { recursive: true, mode: 0o700 });
@@ -56,6 +69,9 @@ async function writeHealth() {
     lastErrorAt,
     trackedAccounts: Object.keys(state.accounts).length,
     pendingAccounts: state.pending.length,
+    queuedOwners: (state.queued || []).length,
+    lastPricePushAt,
+    freshAssets,
   };
   const tmp = `${healthFile}.tmp`;
   await fs.writeFile(tmp, JSON.stringify(health), { mode: 0o600 });
@@ -78,6 +94,8 @@ while (!stop) {
       behind = end < safe;
       const accounts = await client.getContractEvents({ address: router, abi, eventName: 'AccountCreated', fromBlock: from, toBlock: end });
       for (const log of accounts) state.accounts[log.args.account.toLowerCase()] = log.args.owner;
+      const queuedLogs = await client.getContractEvents({ address: router, abi, eventName: 'OwnershipQueued', fromBlock: from, toBlock: end });
+      state.queued = [...new Set([...(state.queued || []), ...queuedLogs.map((l) => l.args.owner)])];
       // Global token Transfer logs (bounded), no unbounded recipient-array query.
       const transfers = await client.getLogs({ address: usdg, event: transfer, fromBlock: from, toBlock: end });
       const pending = new Set(state.pending);
@@ -96,7 +114,7 @@ while (!stop) {
       if (!balance) { state.pending = state.pending.filter(a => a !== account); await persist(); continue; }
       // Allowlist-only recipients reject direct deposits (sender unverifiable): skip, never spin on a revert.
       if (policy[0]) { if (!state.deferred?.[account] || state.deferred[account].reason !== 'allowlist_only_rejects_direct_deposits') { state.deferred ||= {}; state.deferred[account] = { account, owner, rawUsdg: String(balance), reason: 'allowlist_only_rejects_direct_deposits' }; await persist(); } continue; }
-      if (!rule[7] || delegation[0] === zeroAddress || delegation[1] < latestBlock.timestamp || delegation[2] !== rule[6]) continue;
+      if (!rule[5] || delegation[0] === zeroAddress || delegation[1] < latestBlock.timestamp || delegation[2] !== rule[4]) continue;
       if (signer && delegation[0].toLowerCase() !== signer.address.toLowerCase()) continue;
       const decision = decideIncoming({ balance, maxPayment: rule[2], dailyLimit: rule[3], spentDay: day, spentToday: spent, today });
       if (decision.action === 'ignore') { state.pending = state.pending.filter(a => a !== account); await persist(); continue; }
@@ -119,6 +137,42 @@ while (!stop) {
       console.log(JSON.stringify({ event: 'income_split_confirmed', owner, rawUsdg: String(amount), hash, block: String(receipt.blockNumber) }));
       state.deferred && delete state.deferred[account];
       await persist();
+    }
+    if (deskAddress) {
+      // 1) Relay real market prices with the market's own quote time.
+      const assets = [], px = [], times = [];
+      for (const [sym, asset] of Object.entries(DESK_STOCKS)) {
+        try {
+          const q = await fetchQuote(sym);
+          const [, onchainTime] = await client.readContract({ address: deskAddress, abi: deskAbi, functionName: 'prices', args: [asset] });
+          if (BigInt(q.quoteTime) > onchainTime) { assets.push(asset); px.push(toUsd8(q.price)); times.push(BigInt(q.quoteTime)); }
+        } catch (e) { console.error(JSON.stringify({ event: 'quote_failed', sym, error: e.message })); }
+      }
+      if (assets.length && execute) {
+        const sim = await client.simulateContract({ account: signer, address: deskAddress, abi: deskAbi, functionName: 'pushPrices', args: [assets, px, times] });
+        const h = await wallet.writeContract(sim.request); await client.waitForTransactionReceipt({ hash: h });
+        lastPricePushAt = new Date().toISOString();
+        console.log(JSON.stringify({ event: 'prices_pushed', count: assets.length, hash: h }));
+      }
+      const fresh = await Promise.all(Object.values(DESK_STOCKS).map((a) => client.readContract({ address: deskAddress, abi: deskAbi, functionName: 'isFresh', args: [a] })));
+      freshAssets = fresh.filter(Boolean).length;
+      // 2) Buy queued ownership once every stock in the owner's portfolio has a fresh price.
+      for (const owner of [...(state.queued || [])]) {
+        const read = (fn) => client.readContract({ address: router, abi, functionName: fn, args: [owner] });
+        const [reserve, rule, delegation, portfolio] = await Promise.all([read('ownershipReserve'), read('rules'), read('delegations'), read('portfolioOf')]);
+        if (!reserve || !portfolio.length) { state.queued = state.queued.filter((o) => o !== owner); await persist(); continue; }
+        if (!rule[5] || delegation[0] === zeroAddress || delegation[1] < latestBlock.timestamp || delegation[2] !== rule[4]) continue;
+        if (signer && delegation[0].toLowerCase() !== signer.address.toLowerCase()) continue;
+        const allFresh = (await Promise.all(portfolio.map((p) => client.readContract({ address: deskAddress, abi: deskAbi, functionName: 'isFresh', args: [p.asset] })))).every(Boolean);
+        if (!allFresh) continue; // market closed: wait for the next session
+        if (!execute) { console.log(JSON.stringify({ event: 'queued_ownership_buyable', owner, rawUsdg: String(reserve) })); continue; }
+        const sim = await client.simulateContract({ account: signer, address: router, abi, functionName: 'buyPending', args: [owner, reserve] });
+        const h = await wallet.writeContract(sim.request); const r = await client.waitForTransactionReceipt({ hash: h });
+        if (r.status !== 'success') throw new Error('buyPending reverted: ' + h);
+        lastActionAt = new Date().toISOString();
+        console.log(JSON.stringify({ event: 'queued_ownership_bought', owner, rawUsdg: String(reserve), hash: h }));
+        state.queued = state.queued.filter((o) => o !== owner); await persist();
+      }
     }
     lastCycleOk = true;
   } catch (e) { lastCycleOk = false; lastErrorAt = new Date().toISOString(); console.error(JSON.stringify({ event: 'agent_cycle_failed', error: e.shortMessage || e.message })); }

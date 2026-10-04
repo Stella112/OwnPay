@@ -53,7 +53,7 @@ export async function GET(request: Request) {
         if (same(a.owner, owner)) push(l, a.payer === zeroAddress ? 'income_split' : 'payment_received', a);
         else if (same(a.payer, owner)) push(l, 'payment_sent', a);
       } else if ('owner' in a && same(a.owner, owner)) {
-        push(l, ({ Withdrawal: 'withdrawal', RuleSaved: 'rule_saved', AgentChanged: 'agent_changed', PolicySaved: 'policy_saved', SenderStatusChanged: 'sender_status', AccountCreated: 'account_created' } as Record<string, string>)[d.eventName] || d.eventName, a);
+        push(l, ({ OwnershipBought: 'ownership_bought', OwnershipQueued: 'ownership_queued', Withdrawal: 'withdrawal', RuleSaved: 'rule_saved', AgentChanged: 'agent_changed', PolicySaved: 'policy_saved', SenderStatusChanged: 'sender_status', AccountCreated: 'account_created' } as Record<string, string>)[d.eventName] || d.eventName, a);
       }
     }
     for (const l of stockLogs) {

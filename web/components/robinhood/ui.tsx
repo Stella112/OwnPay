@@ -40,8 +40,10 @@ export function describe(i: HistoryItem): { title: string; detail: string; tone:
       : { title: `Incoming ${usdg(d.amount as string)} USDG processed`, detail: `${split} · rule v${d.ruleVersion}`, tone: 'in' };
     case 'payment_received': return { title: `Received ${usdg(d.amount as string)} USDG from ${short(d.payer as string)}`, detail: split, tone: 'in' };
     case 'payment_sent': return { title: `Paid ${usdg(d.amount as string)} USDG to ${short(d.owner as string)}`, detail: `Their rule split it: ${split}`, tone: 'out' };
+    case 'ownership_bought': return { title: `Bought ${shares(d.rawOut as string)} ${sym(d.asset)}`, detail: `With ${usdg(d.usdgIn as string)} USDG of your ownership share, at the market price`, tone: 'in' };
+    case 'ownership_queued': return { title: `${usdg(d.usdgAmount as string)} USDG queued to buy stock`, detail: 'Market closed: it will be bought at the next session', tone: 'setting' };
     case 'withdrawal': return { title: `Withdrew ${usdg(d.amount as string)} USDG from ${d.ownership ? 'ownership reserve' : 'savings'}`, detail: 'Back in your wallet', tone: 'out' };
-    case 'rule_saved': return { title: `Saved rule v${d.version}`, detail: `${Number(d.savingsBps) / 100}% savings · ${Number(d.ownershipBps) / 100}% ownership · agent access reset`, tone: 'setting' };
+    case 'rule_saved': return { title: `Saved rule v${d.version}`, detail: `${Number(d.savingsBps) / 100}% savings · ${Number(d.ownershipBps) / 100}% ownership${Array.isArray(d.assets) && d.assets.length ? ' → ' + (d.assets as unknown as string[]).map((a, k) => `${Number((d.weightsBps as unknown as string[])[k]) / 100}% ${sym(a)}`).join(', ') : ''} · agent access reset`, tone: 'setting' };
     case 'agent_changed': return d.agent === '0x0000000000000000000000000000000000000000'
       ? { title: 'Agent access revoked', detail: 'The agent can no longer process your income', tone: 'setting' }
       : { title: `Agent ${short(d.agent as string)} authorized`, detail: `Until ${when(Number(d.expires))} · for rule v${d.version}`, tone: 'setting' };

@@ -15,7 +15,11 @@ export const ownRulesAbi = parseAbi([
   'function usdg() view returns(address)',
   'function vesting() view returns(address)',
   'function vestingSeconds(address) view returns(uint64)',
-  'function rules(address) view returns(uint16 savingsBps,uint16 ownershipBps,uint128 maxPayment,uint128 dailyLimit,address adapter,uint128 minAssetPerUsdg,uint64 version,bool enabled)',
+  'function rules(address) view returns(uint16 savingsBps,uint16 ownershipBps,uint128 maxPayment,uint128 dailyLimit,uint64 version,bool enabled)',
+  'function portfolioOf(address) view returns((address asset,uint16 weightBps)[])',
+  'function buyPending(address owner,uint256 amount)',
+  'event OwnershipQueued(address indexed owner,uint256 usdgAmount)',
+  'event OwnershipBought(address indexed owner,address indexed asset,uint256 usdgIn,uint256 rawOut)',
   'function delegations(address) view returns(address agent,uint64 expires,uint64 ruleVersion)',
   // Recipient-programmed compliance (no admin): sender status 0 unset, 1 allowed, 2 blocked.
   'function policies(address) view returns(bool allowlistOnly,bool requireMemo,uint128 perSenderDailyCap)',
@@ -25,12 +29,12 @@ export const ownRulesAbi = parseAbi([
   'event PolicySaved(address indexed owner,bool allowlistOnly,bool requireMemo,uint128 perSenderDailyCap)',
   'event SenderStatusChanged(address indexed owner,address indexed sender,uint8 status)',
   'event AccountCreated(address indexed owner,address indexed account)',
-  'event RuleSaved(address indexed owner,uint64 version,uint16 savingsBps,uint16 ownershipBps,address adapter)',
+  'event RuleSaved(address indexed owner,uint64 version,uint16 savingsBps,uint16 ownershipBps,address[] assets,uint16[] weightsBps)',
   'event AgentChanged(address indexed owner,address agent,uint64 expires,uint64 version)',
   'event Withdrawal(address indexed owner,bool ownership,uint256 amount)',
   'function executeSigned(address owner,uint8 action,bytes data,uint256 deadline,bytes signature)',
   'function createAccount() returns(address)',
-  'function saveRule(uint16 saved,uint16 owned,uint128 maxPayment,uint128 dailyLimit,address adapter,uint128 minRate,bool enabled)',
+  'function saveRule(uint16 saved,uint16 owned,uint128 maxPayment,uint128 dailyLimit,address[] assets,uint16[] weightsBps,bool enabled)',
   'function setVestingSeconds(uint64 seconds_)',
   'function delegate(address agent,uint64 expires)',
   'function processIncoming(address owner,uint256 amount,bytes32 metadataCommitment)',
@@ -45,3 +49,10 @@ export const intentTypes = { Intent: [
 export function intentDomain(router: `0x${string}`) {
   return { name: 'OwnPay OwnRules', version: '1', chainId: 46630, verifyingContract: router } as const;
 }
+
+export const stockDeskAbi = parseAbi([
+  'function prices(address) view returns(uint128 usdPerShare,uint64 quoteTime)',
+  'function isFresh(address) view returns(bool)',
+  'function maxAge() view returns(uint64)',
+  'function spreadBps() view returns(uint16)',
+]);

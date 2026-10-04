@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { erc20Abi, isAddress, zeroAddress } from 'viem';
-import { ownRulesAbi, TEST_USDG } from '@/lib/robinhood';
+import { ownRulesAbi, stockDeskAbi, TEST_USDG } from '@/lib/robinhood';
+import { RH_STOCKS } from '@/lib/robinhood-stocks';
 import { rhVestingAbi } from '@/lib/robinhood-vesting';
 import { rhPublic, verifyRhDeployment } from '@/lib/robinhood-server';
 export const runtime = 'nodejs';
@@ -39,7 +40,17 @@ export async function GET(request: Request) {
     const base = { chainId: 46630, router: config.router, demoAdapter: config.demoAdapter, demoAsset: config.demoAsset,
       agent: process.env.ROBINHOOD_AGENT_ADDRESS || null, relayEnabled: !!process.env.ROBINHOOD_RELAY_PRIVATE_KEY && !!value && owners.includes(value.toLowerCase()),
       agentService, sponsorship: 'Custom signed-intent relay; not an ERC-4337 paymaster', stockTokens: 'No official testnet deployments found in registry', complianceMode: 'Recipient-programmed policy (allowlist, blocklist, required memo, per-sender daily cap); no admin; not KYC' };
-    if (!value || !isAddress(value)) return Response.json(base);
+    const deskAddress = process.env.ROBINHOOD_STOCK_DESK;
+    const desk = deskAddress && isAddress(deskAddress) ? {
+      address: deskAddress,
+      maxAge: String(await rhPublic.readContract({ address: deskAddress, abi: stockDeskAbi, functionName: 'maxAge' })),
+      prices: await Promise.all(RH_STOCKS.map(async (t) => {
+        const [usdPerShare, quoteTime] = await rhPublic.readContract({ address: deskAddress, abi: stockDeskAbi, functionName: 'prices', args: [t.address] });
+        const fresh = await rhPublic.readContract({ address: deskAddress, abi: stockDeskAbi, functionName: 'isFresh', args: [t.address] });
+        return { asset: t.address, usdPerShare: String(usdPerShare), quoteTime: String(quoteTime), fresh };
+      })),
+    } : null;
+    if (!value || !isAddress(value)) return Response.json({ ...base, desk });
     const owner = value;
     const read = { address: config.router, abi: ownRulesAbi, args: [owner] } as const;
     const [account, rule, savings, reserve, delegation, policy, nonce, balance] = await Promise.all([
@@ -53,6 +64,7 @@ export async function GET(request: Request) {
     const assetBalance = config.demoAsset && isAddress(config.demoAsset) ? await rhPublic.readContract({ address: config.demoAsset, abi: erc20Abi, functionName: 'balanceOf', args: [owner] }) : null;
     const vesting = await rhPublic.readContract({ address: config.router, abi: ownRulesAbi, functionName: 'vesting' });
     const vestingSeconds = await rhPublic.readContract({ ...read, functionName: 'vestingSeconds' });
+    const portfolio = (await rhPublic.readContract({ ...read, functionName: 'portfolioOf' })).map((p) => ({ asset: p.asset, weightBps: Number(p.weightBps) }));
     const grantCount = await rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'grantCount', args: [owner] });
     const grants = await Promise.all(Array.from({ length: Number(grantCount < 25n ? grantCount : 25n) }, async (_, i) => {
       const id = await rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'grantId', args: [owner, grantCount - 1n - BigInt(i)] });
@@ -61,6 +73,6 @@ export async function GET(request: Request) {
         rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'claimable', args: [id] }),
       ]); return { id, asset: grant[1], total: grant[2], released: grant[3], start: grant[4], end: grant[4] + grant[5], claimable };
     }));
-    return new Response(JSON.stringify({ ...base, account, rule, savings, reserve, delegation, policy, nonce, balance, incoming, assetBalance, vesting, vestingSeconds, grants, grantCount }, (_, v) => typeof v === 'bigint' ? String(v) : v), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    return new Response(JSON.stringify({ ...base, account, rule, savings, reserve, delegation, policy, nonce, balance, incoming, assetBalance, vesting, vestingSeconds, grants, grantCount, portfolio, desk }, (_, v) => typeof v === 'bigint' ? String(v) : v), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   } catch (e) { return Response.json({ error: e instanceof Error ? e.message : 'Testnet unavailable' }, { status: 503 }); }
 }

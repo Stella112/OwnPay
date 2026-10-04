@@ -10,7 +10,9 @@ import { createRobinhoodKernel } from '@/lib/robinhood-kernel';
 export type Snapshot = {
   router: Address; account?: Address; demoAdapter: Address | null; demoAsset: Address | null;
   relayEnabled: boolean; agent: Address | null; balance?: string; savings?: string; reserve?: string; incoming?: string; assetBalance?: string;
-  rule?: [number, number, string, string, Address, string, string, boolean];
+  rule?: [number, number, string, string, string, boolean];
+  portfolio?: { asset: Address; weightBps: number }[];
+  desk?: { address: Address; prices: { asset: Address; usdPerShare: string; quoteTime: string; fresh: boolean }[]; maxAge: string } | null;
   delegation?: [Address, string, string]; policy?: [boolean, boolean, string]; nonce?: string;
   vesting?: Address; vestingSeconds?: string; grantCount?: string;
   grants?: { id: string; asset: Address; total: string; released: string; start: string; end: string; claimable: string }[];
@@ -175,7 +177,7 @@ function SessionCore({ signerOwner, getSigner, auth, children }: { signerOwner?:
       const dec = <T extends readonly { type: string }[]>(types: T) => decodeAbiParameters(types, data);
       const calls: Record<number, () => Hex> = {
         0: () => encodeFunctionData({ abi: ownRulesAbi, functionName: 'createAccount' }),
-        1: () => encodeFunctionData({ abi: ownRulesAbi, functionName: 'saveRule', args: dec([{ type: 'uint16' }, { type: 'uint16' }, { type: 'uint128' }, { type: 'uint128' }, { type: 'address' }, { type: 'uint128' }, { type: 'bool' }] as const) }),
+        1: () => encodeFunctionData({ abi: ownRulesAbi, functionName: 'saveRule', args: dec([{ type: 'uint16' }, { type: 'uint16' }, { type: 'uint128' }, { type: 'uint128' }, { type: 'address[]' }, { type: 'uint16[]' }, { type: 'bool' }] as const) }),
         2: () => encodeFunctionData({ abi: ownRulesAbi, functionName: 'delegate', args: dec([{ type: 'address' }, { type: 'uint64' }] as const) }),
         3: () => encodeFunctionData({ abi: ownRulesAbi, functionName: 'withdraw', args: dec([{ type: 'bool' }, { type: 'uint256' }] as const) }),
         4: () => encodeFunctionData({ abi: ownRulesAbi, functionName: 'setVestingSeconds', args: dec([{ type: 'uint64' }] as const) }),
