@@ -20,8 +20,12 @@ export default function RulesPage() {
     const s = Math.round(Number(saved) * 100), o = Math.round(Number(owned) * 100);
     if (!Number.isFinite(s) || !Number.isFinite(o) || s < 0 || o < 0 || s + o > 10000) throw new Error('Savings and ownership must total no more than 100%.');
     if (demo && !snapshot?.demoAdapter) throw new Error('The demo adapter is not deployed.');
+    let maxRaw: bigint, dailyRaw: bigint;
+    try { maxRaw = parseUnits(max.trim(), 6); dailyRaw = parseUnits(daily.trim(), 6); } catch { throw new Error('Enter valid USDG amounts for the limits.'); }
+    if (maxRaw <= 0n) throw new Error('Max per payment must be greater than zero.');
+    if (dailyRaw < maxRaw) throw new Error('Daily limit must be at least the max per payment (one payment has to fit in a day).');
     return encodeAbiParameters([{ type: 'uint16' }, { type: 'uint16' }, { type: 'uint128' }, { type: 'uint128' }, { type: 'address' }, { type: 'uint128' }, { type: 'bool' }],
-      [s, o, parseUnits(max, 6), parseUnits(daily, 6), demo ? snapshot!.demoAdapter! : zeroAddress, demo ? 10n ** 18n : 0n, true]);
+      [s, o, maxRaw, dailyRaw, demo ? snapshot!.demoAdapter! : zeroAddress, demo ? 10n ** 18n : 0n, true]);
   }
 
   return <div className={styles.workbench}>

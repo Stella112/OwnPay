@@ -1,5 +1,6 @@
 'use client';
 import { formatUnits } from 'viem';
+import { usePathname } from 'next/navigation';
 import { OwnPayIcon } from '@/components/OwnPayIcon';
 import { rhStockByAddress } from '@/lib/robinhood-stocks';
 import { rhExplorer, useRh, type HistoryItem } from './session';
@@ -18,10 +19,12 @@ export function Field({ label, value, onChange, hint, placeholder, mono }: { lab
 
 /** Page heading + the session-wide notices (errors, confirmed tx). */
 export function RhPageHeader({ eyebrow, title, subtitle }: { eyebrow: string; title: string; subtitle: string }) {
-  const { error, hash, clearNotice } = useRh();
+  const { error, errorPath, hash, clearNotice } = useRh();
+  const path = usePathname();
+  const showError = !!error && (!errorPath || errorPath === path); // never follow you to other pages
   return <>
     <div className="dashboard-welcome-row"><div><p className="eyebrow">{eyebrow}</p><h1>{title}<span className="welcome-mark">.</span></h1><p className="dashboard-subtitle">{subtitle}</p></div></div>
-    {error && <div className={styles.alert} role="alert">{error} <button className="btn btn-ghost" onClick={clearNotice}>Dismiss</button></div>}
+    {showError && <div className={styles.alert} role="alert">{error} <button className="btn btn-ghost" onClick={clearNotice}>Dismiss</button></div>}
     {hash && <div className={styles.success}><span>Transaction confirmed on Robinhood testnet.</span><a href={`${rhExplorer}/tx/${hash}`} target="_blank" rel="noreferrer">View on explorer <OwnPayIcon name="arrow" size={15} /></a></div>}
   </>;
 }

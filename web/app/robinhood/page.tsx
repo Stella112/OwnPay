@@ -1,7 +1,8 @@
 'use client';
 import Link from 'next/link';
-import { encodeFunctionData, zeroAddress } from 'viem';
-import { ownRulesAbi } from '@/lib/robinhood';
+import { useState } from 'react';
+import { encodeFunctionData, erc20Abi, parseUnits, zeroAddress } from 'viem';
+import { ownRulesAbi, TEST_USDG } from '@/lib/robinhood';
 import { useRh } from '@/components/robinhood/session';
 import { ActivityList, RhPageHeader, styles, usdg } from '@/components/robinhood/ui';
 
@@ -12,12 +13,23 @@ export default function RobinhoodHome() {
   const agentOn = service?.state === 'online' && service.mode === 'execute';
   const delegated = !!snapshot?.delegation && snapshot.delegation[0] !== zeroAddress && Number(snapshot.delegation[1]) * 1000 > checkedAt;
   const disabled = busy || !owner || !snapshot;
+  const [topUpAmount, setTopUpAmount] = useState('5');
   const cards: [string, string, string][] = [
     ['Spendable USDG', usdg(snapshot?.balance), 'In your wallet'],
     ['Savings', usdg(snapshot?.savings), 'Escrowed, withdraw anytime'],
     ['Ownership reserve', usdg(snapshot?.reserve), 'Set aside to own'],
     ['Agent', agentOn ? (delegated ? 'Working for you' : 'Online · not authorized') : 'Offline', agentOn && delegated ? 'Splits income automatically' : 'See Agent page'],
   ];
+
+  // Demo-friendly top-up: move USDG from your wallet into your receive account,
+  // exactly like someone paying you. With the agent authorized, it is split automatically.
+  async function topUp() {
+    if (!owner || !snapshot?.account) throw new Error('Create your receive account first.');
+    let raw: bigint; try { raw = parseUnits(topUpAmount.trim(), 6); } catch { throw new Error('Enter a valid amount.'); }
+    if (raw <= 0n) throw new Error('Amount must be greater than zero.');
+    if (snapshot.balance && raw > BigInt(snapshot.balance)) throw new Error('That is more USDG than your wallet holds.');
+    await sendCalls([{ to: TEST_USDG, data: encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [snapshot.account, raw] }) }]);
+  }
 
   async function processPending() {
     if (!owner || !snapshot) throw new Error('Sign in first.');
@@ -39,6 +51,15 @@ export default function RobinhoodHome() {
           <button className="btn" disabled={disabled || !accountExists || !snapshot?.rule?.[7] || !Number(snapshot?.incoming)} onClick={() => void run(processPending)}>Split it now</button>
         </div>
         {!snapshot?.rule?.[7] && accountExists && <p className={styles.fieldHint}>No rule yet. <Link href="/robinhood/rules">Set your split</Link> so incoming money knows where to go.</p>}
+        {accountExists && <>
+          <hr className="divide" />
+          <h3>Add money</h3>
+          <p className={styles.fieldHint}>Anyone can send USDG to the address above. To try it yourself, move some from your wallet. It arrives exactly like a payment.</p>
+          <div className={styles.buttonRow}>
+            <label className={styles.field} style={{ flex: 1 }}>Amount · USDG<input className="input tnum" inputMode="decimal" value={topUpAmount} onChange={(e) => setTopUpAmount(e.target.value)} /></label>
+            <button className="btn btn-primary" disabled={disabled || !Number(snapshot?.balance)} onClick={() => void run(topUp)}>Move USDG from my wallet</button>
+          </div>
+        </>}
       </article>
 
       <article className={styles.panel}>

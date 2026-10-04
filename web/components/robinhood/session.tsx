@@ -60,6 +60,8 @@ export function friendlyError(e: unknown): string {
     [/AA21|didn.t pay prefund|insufficient funds/i, 'Not enough testnet ETH for gas, and this action was not sponsored.'],
     [/user rejected|denied transaction|rejected the request/i, 'You rejected the request.'],
     [/invalid sender status/i, 'Enter a valid address other than your own.'],
+    [/invalid limits/i, 'Daily limit must be at least the max per payment, and both must be above zero.'],
+    [/split over 100%/i, 'Savings and ownership together can’t exceed 100%.'],
     [/allowance/i, 'Token approval is missing or too low.'],
     [/nothing to release/i, 'Nothing is claimable yet.'],
   ];
@@ -75,7 +77,7 @@ type Session = {
   setSmartAccount: (on: boolean) => void; auth: React.ReactNode;
   snapshot: Snapshot | null; loading: boolean; refresh: () => Promise<void>; /** ms timestamp of the last status read (render-safe "now"). */ checkedAt: number;
   history: HistoryItem[]; historyLoading: boolean; historyError?: string;
-  busy: boolean; error: string; hash?: Hex; clearNotice: () => void;
+  busy: boolean; error: string; /** page where the error happened (empty = global) */ errorPath: string; hash?: Hex; clearNotice: () => void;
   run: (action: () => Promise<void>) => Promise<void>;
   signed: (action: number, data: Hex) => Promise<void>;
   sendCalls: (calls: Call[]) => Promise<void>;
@@ -117,7 +119,7 @@ function SessionCore({ signerOwner, getSigner, auth, children }: { signerOwner?:
   const [wantSmart, setWantSmart] = useState(true); // smart account by default when sponsorship is configured
   const activeKernel = signerOwner && kernel?.signer === signerOwner ? kernel.client : null;
   const owner = activeKernel?.account.address || signerOwner;
-  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [hash, setHash] = useState<Hex>();
+  const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [errorPath, setErrorPath] = useState(''); const [hash, setHash] = useState<Hex>();
 
   // Deriving the smart account needs no signature, so enable it automatically.
   const starting = useRef<Address | null>(null);
@@ -205,15 +207,15 @@ function SessionCore({ signerOwner, getSigner, auth, children }: { signerOwner?:
   }, [owner]);
   const run = useCallback(async (action: () => Promise<void>) => {
     setBusy(true); setError(''); setHash(undefined);
-    try { await action(); await refresh(); } catch (e) { setError(friendlyError(e)); } finally { setBusy(false); }
+    try { await action(); await refresh(); } catch (e) { setError(friendlyError(e)); setErrorPath(window.location.pathname); } finally { setBusy(false); }
   }, [refresh]);
 
   const value = useMemo<Session>(() => ({
     owner, signerOwner, smartAccount: !!activeKernel, kernelStatus, setSmartAccount, auth,
     snapshot, loading: status.isLoading, refresh, checkedAt: status.dataUpdatedAt,
     history: historyQ.data ?? [], historyLoading: historyQ.isLoading, historyError: historyQ.error ? friendlyError(historyQ.error) : undefined,
-    busy, error: error || (status.error ? friendlyError(status.error) : ''), hash, clearNotice: () => { setError(''); setHash(undefined); },
+    busy, error: error || (status.error ? friendlyError(status.error) : ''), errorPath: error ? errorPath : '', hash, clearNotice: () => { setError(''); setHash(undefined); },
     run, signed, sendCalls, commitment,
-  }), [owner, signerOwner, activeKernel, kernelStatus, setSmartAccount, auth, snapshot, status.isLoading, status.dataUpdatedAt, status.error, refresh, historyQ.data, historyQ.isLoading, historyQ.error, busy, error, hash, run, signed, sendCalls, commitment]);
+  }), [errorPath, owner, signerOwner, activeKernel, kernelStatus, setSmartAccount, auth, snapshot, status.isLoading, status.dataUpdatedAt, status.error, refresh, historyQ.data, historyQ.isLoading, historyQ.error, busy, error, hash, run, signed, sendCalls, commitment]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
