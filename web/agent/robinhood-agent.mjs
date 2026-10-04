@@ -14,7 +14,7 @@ const abi = parseAbi([
   'event AccountCreated(address indexed owner,address indexed account)',
   'function rules(address) view returns(uint16,uint16,uint128,uint128,address,uint128,uint64,bool)',
   'function delegations(address) view returns(address,uint64,uint64)',
-  'function compliance(address) view returns(uint64,bool)',
+  'function policies(address) view returns(bool,bool,uint128)',
   'function spentDay(address) view returns(uint256)',
   'function spentToday(address) view returns(uint256)',
   'function usdg() view returns(address)',
@@ -89,12 +89,14 @@ while (!stop) {
     for (const account of [...state.pending]) {
       const owner = state.accounts[account];
       const read = functionName => client.readContract({ address: router, abi, functionName, args: [owner] });
-      const [balance, rule, delegation, compliance, day, spent] = await Promise.all([
+      const [balance, rule, delegation, policy, day, spent] = await Promise.all([
         client.readContract({ address: usdg, abi: erc20Abi, functionName: 'balanceOf', args: [account] }),
-        read('rules'), read('delegations'), read('compliance'), read('spentDay'), read('spentToday'),
+        read('rules'), read('delegations'), read('policies'), read('spentDay'), read('spentToday'),
       ]);
       if (!balance) { state.pending = state.pending.filter(a => a !== account); await persist(); continue; }
-      if (!rule[7] || compliance[1] || compliance[0] < latestBlock.timestamp || delegation[0] === zeroAddress || delegation[1] < latestBlock.timestamp || delegation[2] !== rule[6]) continue;
+      // Allowlist-only recipients reject direct deposits (sender unverifiable): skip, never spin on a revert.
+      if (policy[0]) { if (!state.deferred?.[account] || state.deferred[account].reason !== 'allowlist_only_rejects_direct_deposits') { state.deferred ||= {}; state.deferred[account] = { account, owner, rawUsdg: String(balance), reason: 'allowlist_only_rejects_direct_deposits' }; await persist(); } continue; }
+      if (!rule[7] || delegation[0] === zeroAddress || delegation[1] < latestBlock.timestamp || delegation[2] !== rule[6]) continue;
       if (signer && delegation[0].toLowerCase() !== signer.address.toLowerCase()) continue;
       const decision = decideIncoming({ balance, maxPayment: rule[2], dailyLimit: rule[3], spentDay: day, spentToday: spent, today });
       if (decision.action === 'ignore') { state.pending = state.pending.filter(a => a !== account); await persist(); continue; }

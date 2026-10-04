@@ -38,14 +38,14 @@ export async function GET(request: Request) {
     const owners = (process.env.ROBINHOOD_SPONSORED_OWNERS || '').toLowerCase().split(',');
     const base = { chainId: 46630, router: config.router, demoAdapter: config.demoAdapter, demoAsset: config.demoAsset,
       agent: process.env.ROBINHOOD_AGENT_ADDRESS || null, relayEnabled: !!process.env.ROBINHOOD_RELAY_PRIVATE_KEY && !!value && owners.includes(value.toLowerCase()),
-      agentService, sponsorship: 'Custom signed-intent relay; not an ERC-4337 paymaster', stockTokens: 'No official testnet deployments found in registry', complianceMode: 'Local test policy, not KYC' };
+      agentService, sponsorship: 'Custom signed-intent relay; not an ERC-4337 paymaster', stockTokens: 'No official testnet deployments found in registry', complianceMode: 'Recipient-programmed policy (allowlist, blocklist, required memo, per-sender daily cap); no admin; not KYC' };
     if (!value || !isAddress(value)) return Response.json(base);
     const owner = value;
     const read = { address: config.router, abi: ownRulesAbi, args: [owner] } as const;
-    const [account, rule, savings, reserve, delegation, compliance, nonce, balance] = await Promise.all([
+    const [account, rule, savings, reserve, delegation, policy, nonce, balance] = await Promise.all([
       rhPublic.readContract({ ...read, functionName: 'accounts' }), rhPublic.readContract({ ...read, functionName: 'rules' }),
       rhPublic.readContract({ ...read, functionName: 'savings' }), rhPublic.readContract({ ...read, functionName: 'ownershipReserve' }),
-      rhPublic.readContract({ ...read, functionName: 'delegations' }), rhPublic.readContract({ ...read, functionName: 'compliance' }),
+      rhPublic.readContract({ ...read, functionName: 'delegations' }), rhPublic.readContract({ ...read, functionName: 'policies' }),
       rhPublic.readContract({ ...read, functionName: 'nonces' }),
       rhPublic.readContract({ address: TEST_USDG, abi: erc20Abi, functionName: 'balanceOf', args: [owner] }),
     ]);
@@ -61,14 +61,6 @@ export async function GET(request: Request) {
         rhPublic.readContract({ address: vesting, abi: rhVestingAbi, functionName: 'claimable', args: [id] }),
       ]); return { id, asset: grant[1], total: grant[2], released: grant[3], start: grant[4], end: grant[4] + grant[5], claimable };
     }));
-    // Bounded query with explicit incomplete-state warning rather than fabricated zero history.
-    const latest = await rhPublic.getBlockNumber(); const fromBlock = latest > 1500n && latest - 1500n > config.startBlock ? latest - 1500n : config.startBlock;
-    let receipts: unknown[] = []; let historyWarning: string | null = null;
-    try {
-      const logs = await rhPublic.getContractEvents({ address: config.router, abi: ownRulesAbi, eventName: 'PaymentReceipt', args: { owner }, fromBlock, toBlock: latest });
-      receipts = logs.map(l => ({ hash: l.transactionHash, block: l.blockNumber, ...l.args }));
-      if (fromBlock > config.startBlock) historyWarning = 'Showing the last 1500 blocks only. Older receipts remain on the explorer.';
-    } catch { historyWarning = 'RPC history unavailable. Balances loaded independently; use explorer for receipts.'; }
-    return new Response(JSON.stringify({ ...base, account, rule, savings, reserve, delegation, compliance, nonce, balance, incoming, assetBalance, vesting, vestingSeconds, grants, grantCount, receipts, historyWarning }, (_, v) => typeof v === 'bigint' ? String(v) : v), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    return new Response(JSON.stringify({ ...base, account, rule, savings, reserve, delegation, policy, nonce, balance, incoming, assetBalance, vesting, vestingSeconds, grants, grantCount }, (_, v) => typeof v === 'bigint' ? String(v) : v), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   } catch (e) { return Response.json({ error: e instanceof Error ? e.message : 'Testnet unavailable' }, { status: 503 }); }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { WalletButton } from "@/components/WalletButton";
 import { useEligibility } from "@/components/Eligibility";
@@ -20,7 +21,7 @@ export function AppShell({ children, variant = "base" }: { children: React.React
             <Link href="/#use-cases">Use cases</Link>
             <Link href="/#roadmap">Resources</Link>
           </nav>
-          <div className="header-actions"><Link href="/app" className="header-dashboard-link">Dashboard</Link>{variant === "base" && <WalletButton />}</div>
+          <div className="header-actions"><NetworkSwitch /><Link href={variant === "base" ? "/app" : "/robinhood"} className="header-dashboard-link">Dashboard</Link>{variant === "base" && <WalletButton />}</div>
         </div>
       </header>
 
@@ -29,6 +30,23 @@ export function AppShell({ children, variant = "base" }: { children: React.React
       <main className="site-main">{children}</main>
 
       <AppFooter variant={variant} />
+    </div>
+  );
+}
+
+// Equivalent pages across the two networks, so switching keeps your place.
+const TO_ROBINHOOD: Record<string, string> = { "/app": "/robinhood", "/pay": "/robinhood/pay", "/gift": "/robinhood/stocks", "/tip": "/robinhood/stocks", "/portfolio": "/robinhood/ownership", "/automation": "/robinhood/rules" };
+const TO_BASE: Record<string, string> = { "/robinhood": "/app", "/robinhood/pay": "/pay", "/robinhood/stocks": "/gift", "/robinhood/ownership": "/portfolio", "/robinhood/rules": "/automation", "/robinhood/agent": "/automation" };
+
+function NetworkSwitch() {
+  const path = usePathname();
+  const onRobinhood = path.startsWith("/robinhood");
+  const baseHref = TO_BASE[path] ?? "/app";
+  const rhHref = TO_ROBINHOOD[path] ?? "/robinhood";
+  return (
+    <div className="network-switch" role="group" aria-label="Network">
+      <Link href={baseHref} className={!onRobinhood ? "network-switch-active" : ""} aria-current={!onRobinhood ? "true" : undefined}>Base</Link>
+      <Link href={rhHref} className={onRobinhood ? "network-switch-active" : ""} aria-current={onRobinhood ? "true" : undefined}>Robinhood <small>testnet</small></Link>
     </div>
   );
 }
