@@ -65,11 +65,17 @@ console.log(JSON.stringify({ event: 'agent_started', chainId: 46630, mode, agent
 const transfer = parseAbi(['event Transfer(address indexed from,address indexed to,uint256 value)'])[0];
 let stop = false; process.on('SIGINT', () => { stop = true; }); process.on('SIGTERM', () => { stop = true; });
 while (!stop) {
+  let behind = false;
   try {
     const latest = await client.getBlockNumber(); const safe = latest > 2n ? latest - 2n : 0n;
     let from = BigInt(state.nextBlock);
+    // Robinhood testnet produces ~7 blocks/s; a small fixed chunk can never keep up.
+    // RPC getLogs handles 50k-block spans (~0.5s), so scan in large chunks and skip
+    // the sleep while behind (see `behind` below) to catch up quickly.
+    const chunk = BigInt(Math.max(100, Number(process.env.ROBINHOOD_AGENT_BLOCK_CHUNK || 10000)));
     if (from <= safe) {
-      const end = from + 199n < safe ? from + 199n : safe;
+      const end = from + chunk - 1n < safe ? from + chunk - 1n : safe;
+      behind = end < safe;
       const accounts = await client.getContractEvents({ address: router, abi, eventName: 'AccountCreated', fromBlock: from, toBlock: end });
       for (const log of accounts) state.accounts[log.args.account.toLowerCase()] = log.args.owner;
       // Global token Transfer logs (bounded), no unbounded recipient-array query.
@@ -116,5 +122,6 @@ while (!stop) {
   } catch (e) { lastCycleOk = false; lastErrorAt = new Date().toISOString(); console.error(JSON.stringify({ event: 'agent_cycle_failed', error: e.shortMessage || e.message })); }
   try { await writeHealth(); } catch (e) { console.error(JSON.stringify({ event: 'agent_health_write_failed', error: e.message })); }
   if (process.env.ROBINHOOD_AGENT_ONCE === 'true') break;
+  if (behind) continue; // catching up on history: no sleep
   await new Promise(r => setTimeout(r, Math.max(15000, Number(process.env.ROBINHOOD_AGENT_INTERVAL_MS || 60000))));
 }
